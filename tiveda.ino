@@ -1,4 +1,3 @@
-
 #include "config.h"
 #include <FS.h>
 #include <EventManager.h>
@@ -300,11 +299,8 @@ void checkPois(int eventCode, int eventParam)
         // We trigger this each time, becouse the speed varies
         eventManager.queueEvent(ALERT_TRIGGERED, current->spd - pois[i].limit);
 
-        //******************* Oled ************************************************************
-
         Serial.print(pois[i].limit);
         Serial.println("km/h");
-        //*************************************************************************************
         alertFound = inAlert = true;
     }
     if (inAlert && !alertFound)
@@ -375,13 +371,12 @@ void checkErrors(t_httpUpdate_return ret)
 
     case HTTP_UPDATE_NO_UPDATES:
 #ifdef DEBUG
-        Serial.println(F("no update found"));
+        Serial.println("no update found");
 #endif
         break;
-
     case HTTP_UPDATE_OK:
 #ifdef DEBUG
-        Serial.println(F("update successfull"));
+        Serial.println("update successfull");
 #endif
         break;
     }
