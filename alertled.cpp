@@ -26,50 +26,59 @@ bool AlertLED::inverted = false;
  * @param EventManager the event manager used for events
  * @param bool wether we are in inverted mode.
  */
-void AlertLED::init(EventManager* eventManager, bool isInverted) {
+void AlertLED::init(EventManager *eventManager, bool isInverted)
+{
     inverted = isInverted;
-    
+
     pinMode(CFG_LED_ALERT1, OUTPUT);
     pinMode(CFG_LED_ALERT2, OUTPUT);
     pinMode(CFG_BEEPER, OUTPUT);
     digitalWrite(CFG_LED_ALERT1, 1 - inverted);
     digitalWrite(CFG_LED_ALERT2, 1 - inverted);
     digitalWrite(CFG_BEEPER, 1);
-    
+
     alertStatus = ALERT_NONE;
-    
+
     eventManager->addListener(ALERT_TRIGGERED, &AlertLED::alertTriggeredCallback);
     eventManager->addListener(ALERT_RESET, &AlertLED::resetCallback);
     eventManager->addListener(GPS_STATUS_CHANGED, &AlertLED::resetCallback);
     ticker.attach_ms(50, &AlertLED::tickCallback);
 };
 
-
 /**
  * Incoming alert update
  */
-void AlertLED::alertTriggeredCallback(int eventCode, int eventParam) {
+void AlertLED::alertTriggeredCallback(int eventCode, int eventParam)
+{
     Serial.print("Alert: ");
     Serial.println(eventParam);
-    if (eventParam <= -10) {
+    if (eventParam <= -10)
+    {
         alertStatus = ALERT_INFO1;
     }
-    else if (eventParam < -5) {
+    else if (eventParam < -5)
+    {
         alertStatus = ALERT_INFO2;
     }
-    else if (eventParam <= 0) {
+    else if (eventParam <= 0)
+    {
         alertStatus = ALERT_INFO3;
     }
-    else if (eventParam <= 15) {
+    else if (eventParam <= 15)
+    {
         alertStatus = ALERT_WARNING;
     }
-    else {
+    else
+    {
         alertStatus = ALERT_DANGER;
     }
-    if (alertStatus == ALERT_WARNING) {
+    if (alertStatus == ALERT_WARNING)
+    {
         // Warning state is constantly speeding up
-        ticker.attach_ms(50-3*eventParam, &AlertLED::tickCallback);
-    } else {
+        ticker.attach_ms(50 - 3 * eventParam, &AlertLED::tickCallback);
+    }
+    else
+    {
         ticker.attach_ms(50, &AlertLED::tickCallback);
     }
 };
@@ -77,17 +86,24 @@ void AlertLED::alertTriggeredCallback(int eventCode, int eventParam) {
 /**
  * Alert has been reset
  */
-void AlertLED::resetCallback(int eventCode, int eventParam) {
-    if (eventCode != GPS_STATUS_CHANGED || eventParam == 0) {
+void AlertLED::resetCallback(int eventCode, int eventParam)
+{
+    if (eventCode != GPS_STATUS_CHANGED || eventParam == 0)
+    {
         alertStatus = ALERT_NONE;
     }
-    if (eventCode == GPS_STATUS_CHANGED) {
-        if (eventParam == receptionStatus) return;
+    if (eventCode == GPS_STATUS_CHANGED)
+    {
+        if (eventParam == receptionStatus)
+            return;
         receptionStatus = eventParam;
         // Start anim
-        if (receptionStatus) {
+        if (receptionStatus)
+        {
             receptionCounter = 1;
-        } else {
+        }
+        else
+        {
             receptionCounter = 10;
         }
         analogWriteFreq(receptionCounter * 88);
@@ -99,19 +115,23 @@ void AlertLED::resetCallback(int eventCode, int eventParam) {
 /**
  * When GPS reception changed this callback plays the anim
  */
-void AlertLED::receptionAnimCallback() {
-    if (receptionStatus) {
+void AlertLED::receptionAnimCallback()
+{
+    if (receptionStatus)
+    {
         receptionCounter++;
-    } else {
+    }
+    else
+    {
         receptionCounter--;
     }
-    
+
     analogWriteFreq(receptionCounter * 88);
-    
-    if (receptionCounter == 10 || receptionCounter == 1) {
+
+    if (receptionCounter == 10 || receptionCounter == 1)
+    {
         // End of anim
         receptionTicker.detach();
         analogWrite(CFG_BEEPER, 1023);
     }
 }
-

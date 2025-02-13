@@ -18,14 +18,14 @@
 // GPIO port of the alert led
 #define CFG_LED_ALERT1 12 // D6
 #define CFG_LED_ALERT2 14 // D5
-#define CFG_BEEPER 13    // Oled!!!
+#define CFG_BEEPER 13     // Oled!!!
 
 // GPIO port of the debug button
 #define CFG_BTN 0
 
 // GPIO ports connected when in inverted mode
-//#define INVERT_OUT 5 // D1 // Oled!!!
-//#define INVERT_IN 15 // D8 // Oled!!!
+// #define INVERT_OUT 5 // D1 // Oled!!!
+// #define INVERT_IN 15 // D8 // Oled!!!
 
 // Tolerance in heading from the requiered in degress
 #define CFG_HDG_TOLERANCE 45
@@ -45,4 +45,3 @@
 
 // Alert is gone
 #define ALERT_RESET EventManager::kEventUser5
-
