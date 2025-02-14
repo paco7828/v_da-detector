@@ -65,14 +65,7 @@ void setup()
     message.reserve(200);
 
 #ifdef DEBUG
-    if (inverted)
-    {
-        Serial.println("Board is inverted");
-    }
-    else
-    {
-        Serial.println("Board is normal");
-    }
+    Serial.println("Board is normal");
 #endif
 
     // Setup PWM frequency
@@ -95,10 +88,10 @@ void setup()
 
     // Initialize output modules
 #ifdef ENABLE_STATUSLED
-    StatusLED::init(&eventManager, inverted);
+    StatusLED::init(&eventManager);
 #endif
 #ifdef ENABLE_ALERTLED
-    AlertLED::init(&eventManager, inverted);
+    AlertLED::init(&eventManager);
 #endif
 
     // First events
@@ -323,14 +316,8 @@ void checkPois(int eventCode, int eventParam)
 void performOTA()
 {
     String url = String(F("http://ota.sneaker.hu/?id=")) + String(ESP.getChipId(), HEX) + String(F("&board=")) + FPSTR(BVERSION);
-    if (inverted)
-    {
-        url += "i";
-    }
-    else
-    {
-        url += "n";
-    }
+
+    url += "n";
 
     wifiConnecting = false;
 
