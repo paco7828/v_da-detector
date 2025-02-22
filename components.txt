@@ -8,5 +8,5 @@
     -2x 1kR
     -1x 2kR
 -Capacitors:
-    -100uF
-    -100nF
+    -100uF (electrolytic)
+    -100nF (ceramic)
