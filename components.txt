@@ -2,11 +2,12 @@
 -MCU - ATMEGA328P-PU - https://www.hestore.hu/prod_10032009.html
 -Speaker
 -MP3 player - DFPlayer-16P - https://www.hestore.hu/prod_10038040.html
--Status led - WS2812B - https://www.hestore.hu/prod_10038301.html
+-Status led - EVL-504-90-CA - https://www.hestore.hu/prod_10037597.html
 -Potmeter - 16PMI-10K - https://www.hestore.hu/prod_10038403.html
 -Resistors:
     -2x 1kR - https://www.hestore.hu/prod_10038447.html
     -1x 2kR - https://www.hestore.hu/prod_10031299.html
+    -3x 220R - https://www.hestore.hu/prod_10043788.html
 -Capacitors:
     -100uF (electrolytic) - https://www.hestore.hu/prod_10033578.html
     -100nF (ceramic) - https://www.hestore.hu/prod_10001122.html
