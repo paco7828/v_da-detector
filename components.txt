@@ -4,3 +4,9 @@
 -MP3 player - DFPlayer-16P - https://www.hestore.hu/prod_10038040.html
 -Status led - WS2812B - https://www.hestore.hu/prod_10038301.html
 -Potmeter - 16PMI-10K - https://www.hestore.hu/prod_10038403.html
+-Resistors:
+    -2x 1kR
+    -1x 2kR
+-Capacitors:
+    -100uF
+    -100nF
