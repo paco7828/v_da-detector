@@ -1,4 +1,4 @@
--GPS module - NEO6M-V2
+-GPS module - NEO6M-V2 - https://www.hestore.hu/prod_10035556.html
 -MCU - ATMEGA328P-PU - https://www.hestore.hu/prod_10032009.html
 -Speaker
 -MP3 player - DFPlayer-16P - https://www.hestore.hu/prod_10038040.html
