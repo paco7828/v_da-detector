@@ -4,6 +4,7 @@
 -MP3 player - DFPlayer-16P - https://www.hestore.hu/prod_10038040.html
 -Status led - EVL-504-90-CA - https://www.hestore.hu/prod_10037597.html
 -Potmeter - POM1615 LIN 10K B - https://www.hestore.hu/prod_10027737.html
+-Connector - TYPE-C-6P-073 - https://www.hestore.hu/prod_10046971.html
 -Resistors:
     -2x 1kR - https://www.hestore.hu/prod_10038447.html
     -1x 2kR - https://www.hestore.hu/prod_10031299.html
