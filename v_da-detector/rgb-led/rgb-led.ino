@@ -1,5 +1,5 @@
-#define RGB_RED 9
-#define RGB_GREEN 10
+#define RGB_RED 3
+#define RGB_GREEN 4
 #define RGB_BLUE 5
 
 void setup() {
