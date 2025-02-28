@@ -13,6 +13,8 @@
 004.mp3 -> lassíts
 005.mp3 -> sebességhatár 50 km/h
 006.mp3 -> beep
+007.mp3 -> GPS jel keresése
+008.mp3 -> Műhold beazonosítva, jó utat!
 */
 
 // Create instances
