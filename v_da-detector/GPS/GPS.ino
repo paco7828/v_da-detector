@@ -1,8 +1,8 @@
 #include <SoftwareSerial.h>
 #include <TinyGPS++.h>
 
-#define GPS_RX 2
-#define GPS_TX 6
+#define GPS_RX 11
+#define GPS_TX 10
 #define GPS_BAUD 9600
 
 SoftwareSerial gpsSerial(GPS_RX, GPS_TX);
