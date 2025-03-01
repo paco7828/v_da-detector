@@ -1,14 +1,10 @@
 -GPS module - NEO6M-V2 - https://www.hestore.hu/prod_10035556.html
 -MCU - ATMEGA328P-PU - https://www.hestore.hu/prod_10032009.html
--Speaker
--MP3 player - DFPlayer-16P - https://www.hestore.hu/prod_10038040.html
 -Status led - EVL-504-90-CA - https://www.hestore.hu/prod_10037597.html
--Potmeter - POM1615 LIN 10K B - https://www.hestore.hu/prod_10027737.html
 -Connector - TYPE-C-6P-073 - https://www.hestore.hu/prod_10046971.html
 -Resistors:
-    -3x 1kR - https://www.hestore.hu/prod_10038447.html
-    -2x 2kR - https://www.hestore.hu/prod_10031299.html
+    -1x 1kR - https://www.hestore.hu/prod_10038447.html
+    -1x 2kR - https://www.hestore.hu/prod_10031299.html
     -3x 220R - https://www.hestore.hu/prod_10043788.html
 -Capacitors:
-    -100uF (electrolytic) - https://www.hestore.hu/prod_10033578.html
     -100nF (ceramic) - https://www.hestore.hu/prod_10001122.html
