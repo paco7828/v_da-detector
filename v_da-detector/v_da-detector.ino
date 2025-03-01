@@ -16,6 +16,8 @@ double currentLat, currentLon;
 int currentSpeed;
 bool playedSignalFoundSound = false;
 bool playedNoSignalSound = false;
+unsigned long lastBeepTime = 0;
+bool within300Meters = false;
 
 void setup() {
   Serial.begin(115200);
@@ -39,6 +41,7 @@ void loop() {
         playedSignalFoundSound = true;
         playedNoSignalSound = false;
       }
+      
       currentLat = gps.location.lat();
       currentLon = gps.location.lng();
       currentSpeed = gps.speed.kmph();
@@ -50,7 +53,7 @@ void loop() {
       checkProximityToTraffipax();
 
       digitalWrite(LED_R, HIGH);
-      digitalWrite(LED_G, LOW); // Green LED on
+      digitalWrite(LED_G, LOW);  // Green LED on
     } else {
       if (!playedNoSignalSound) {
         Serial.println("No GPS fix yet...");
@@ -59,17 +62,23 @@ void loop() {
         playedSignalFoundSound = false;
       }
       digitalWrite(LED_G, HIGH);
-      digitalWrite(LED_R, LOW); // Red LED on
+      digitalWrite(LED_R, LOW);  // Red LED on
     }
+  }
+
+  if (within300Meters && millis() - lastBeepTime >= 3000) {
+    shortBeep();
+    lastBeepTime = millis();
   }
 }
 
 void checkProximityToTraffipax() {
+  within300Meters = false;
   for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++) {
     double distance = getDistance(currentLat, currentLon, coordinates[i].lat, coordinates[i].lon);
-    if (distance <= 500) {
+    if (distance <= 300) {
       Serial.println("Warning! Approaching a traffipax!");
-      alertSound();
+      within300Meters = true;
       break;
     }
   }
@@ -97,16 +106,14 @@ void signalFoundSound() {
   noTone(PIEZO);
 }
 
-void alertSound() {
-  for (int i = 0; i < 10; i++) {
-    tone(PIEZO, 3000, 200);
-    delay(300);
-  }
+void shortBeep() {
+  tone(PIEZO, 4000, 700);
+  delay(1000);
   noTone(PIEZO);
 }
 
 double getDistance(double lat1, double lon1, double lat2, double lon2) {
-  const double R = 6371000; // Earth radius in meters
+  const double R = 6371000;  // Earth radius in meters
   double dLat = radians(lat2 - lat1);
   double dLon = radians(lon2 - lon1);
   double a = sin(dLat / 2) * sin(dLat / 2) + cos(radians(lat1)) * cos(radians(lat2)) * sin(dLon / 2) * sin(dLon / 2);
