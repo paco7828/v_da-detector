@@ -1,87 +1,115 @@
-#include "coordinates.h"
-#include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
+#include <TinyGPS++.h>
+#include "coordinates.h"
 
+#define GPS_RX 12  // D6 (GPIO12)
+#define GPS_TX 13  // D7 (GPIO13)
+#define GPS_BAUD 9600
+#define PIEZO 14  // D5 (GPIO 14)
+#define LED_R 5   // D1 (GPIO5)
+#define LED_G 4   // D2 (GPIO4)
+
+SoftwareSerial gpsSerial(GPS_TX, GPS_RX);  // TX (to GPS RX), RX (to GPS TX)
 TinyGPSPlus gps;
 
-SoftwareSerial gpsSerial(13, 12);  // TX -> D7 (GPIO13), RX -> D6 (GPIO12)
-
-double lat, lon;
-byte type;
-int limit;
-int buzzerPin = 5;  // Use D1 (GPIO5), avoid TX (GPIO1)
+double currentLat, currentLon;
+int currentSpeed;
+bool playedSignalFoundSound = false;
+bool playedNoSignalSound = false;
 
 void setup() {
   Serial.begin(115200);
-  gpsSerial.begin(9600);
-  pinMode(buzzerPin, OUTPUT);
-
-  // Wait for Serial Monitor to open (for debugging)
-  while (!Serial) {
-    delay(100);
-  }
-
-  Serial.println("\nGPS System Starting...");
-
-  // Wait for GPS Module to Respond
-  Serial.print("Checking GPS communication...");
-  unsigned long start = millis();
-  bool gpsAvailable = false;
-
-  while (millis() - start < 5000) {  // Wait up to 5 seconds
-    if (gpsSerial.available()) {
-      gpsAvailable = true;
-      break;
-    }
-    delay(100);
-    Serial.print(".");
-  }
-
-  if (!gpsAvailable) {
-    Serial.println("\nGPS module not responding! Check wiring.");
-  } else {
-    Serial.println("\nGPS communication established.");
-  }
-
-  // Beep to indicate startup
-  tone(buzzerPin, 2000, 1000);
-  delay(1000);
-
-  // Print stored coordinates
-  const int numCoordinates = sizeof(coordinates) / sizeof(coordinates[0]);
-  Serial.println("Stored coordinates:");
-  for (int i = 0; i < numCoordinates; i++) {
-    Serial.printf("Lat: %.6f, Lon: %.6f, Type: %d, Limit: %d\n",
-                  coordinates[i].lat, coordinates[i].lon, coordinates[i].type, coordinates[i].limit);
-  }
-
-  // Wait for GPS fix
-  Serial.println("Waiting for GPS fix...");
-  while (!gps.location.isValid()) {
-    while (gpsSerial.available() > 0) {
-      gps.encode(gpsSerial.read());
-    }
-    Serial.print(".");
-    delay(1000);
-  }
-
-  Serial.println("\nGPS fix acquired!");
-  tone(buzzerPin, 4000, 2000);
+  gpsSerial.begin(GPS_BAUD);
+  pinMode(PIEZO, OUTPUT);
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_G, OUTPUT);
+  digitalWrite(LED_R, HIGH);
+  digitalWrite(LED_G, HIGH);
+  bootUpSound();
+  delay(2000);
 }
 
 void loop() {
   while (gpsSerial.available() > 0) {
-    if (gps.encode(gpsSerial.read())) {
-      if (gps.location.isValid()) {
-        Serial.printf("Current Position - Lat: %.6f, Lon: %.6f\n",
-                      gps.location.lat(), gps.location.lng());
+    gps.encode(gpsSerial.read());
+
+    if (gps.location.isValid()) {
+      if (!playedSignalFoundSound) {
+        signalFoundSound();
+        playedSignalFoundSound = true;
+        playedNoSignalSound = false;
       }
+      currentLat = gps.location.lat();
+      currentLon = gps.location.lng();
+      currentSpeed = gps.speed.kmph();
+
+      Serial.println(currentLat);
+      Serial.println(currentLon);
+      Serial.println(currentSpeed);
+
+      checkProximityToTraffipax();
+
+      digitalWrite(LED_R, HIGH);
+      digitalWrite(LED_G, LOW); // Green LED on
+    } else {
+      if (!playedNoSignalSound) {
+        Serial.println("No GPS fix yet...");
+        signalSearchSound();
+        playedNoSignalSound = true;
+        playedSignalFoundSound = false;
+      }
+      digitalWrite(LED_G, HIGH);
+      digitalWrite(LED_R, LOW); // Red LED on
     }
   }
+}
 
-  // Check if GPS is still responding
-  if (millis() > 5000 && gps.charsProcessed() < 10) {
-    Serial.println("No GPS data received! Check wiring.");
-    delay(5000);
+void checkProximityToTraffipax() {
+  for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++) {
+    double distance = getDistance(currentLat, currentLon, coordinates[i].lat, coordinates[i].lon);
+    if (distance <= 500) {
+      Serial.println("Warning! Approaching a traffipax!");
+      alertSound();
+      break;
+    }
   }
+}
+
+void bootUpSound() {
+  tone(PIEZO, 1000, 200);
+  delay(250);
+  tone(PIEZO, 1500, 200);
+  delay(250);
+  tone(PIEZO, 2000, 200);
+  delay(250);
+  noTone(PIEZO);
+}
+
+void signalSearchSound() {
+  tone(PIEZO, 1000, 1500);
+}
+
+void signalFoundSound() {
+  tone(PIEZO, 2000, 200);
+  delay(250);
+  tone(PIEZO, 2500, 200);
+  delay(250);
+  noTone(PIEZO);
+}
+
+void alertSound() {
+  for (int i = 0; i < 10; i++) {
+    tone(PIEZO, 3000, 200);
+    delay(300);
+  }
+  noTone(PIEZO);
+}
+
+double getDistance(double lat1, double lon1, double lat2, double lon2) {
+  const double R = 6371000; // Earth radius in meters
+  double dLat = radians(lat2 - lat1);
+  double dLon = radians(lon2 - lon1);
+  double a = sin(dLat / 2) * sin(dLat / 2) + cos(radians(lat1)) * cos(radians(lat2)) * sin(dLon / 2) * sin(dLon / 2);
+  double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+  return R * c;
 }
