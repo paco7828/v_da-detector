@@ -24,7 +24,7 @@ bool playedNoSignalSound = false;
 
 // Presence in proximity range
 bool withinProxRange = false;
-#define PROX_RANGE 300 // meters
+#define PROX_RANGE 300  // meters
 
 void setup() {
   // Start serial communication
@@ -87,35 +87,55 @@ void loop() {
 
 // Functon to check distance between traffipax and you
 void checkProximityToTraffipax() {
-  // Variable to track is traffipax is near
   bool traffipaxFound = false;
 
-  // Loop through coordinates
   for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++) {
-    // Get distance for each coordinate from your location
     double distance = getDistance(currentLat, currentLon, coordinates[i].lat, coordinates[i].lon);
 
-    // If distance is within proximity range
     if (distance <= PROX_RANGE) {
       traffipaxFound = true;
 
-      // Trigger proximity range alert once
       if (!withinProxRange) {
-        // Beep + blink 5-5 times
-        beepNTimes(5, 4000, 200);
-        blinkLed(ledR, 5);
-        withinProxRange = true;
+        withinProxRange = true;  // Prevent repeated alerts
+
+        // Turn OFF Green LED before alert
+        digitalWrite(ledG, HIGH);
+
+        // Beep & Blink 5 times SIMULTANEOUSLY
+        alertWithBeepAndBlink(5, 4000, 200);
+
+        // Restore LEDs: Red OFF, Green ON
+        digitalWrite(ledR, HIGH);
+        digitalWrite(ledG, LOW);
       }
       break;
     }
   }
 
   if (!traffipaxFound) {
-    withinProxRange = false;
+    withinProxRange = false;  // Reset for next detection
   }
 }
 
-// Function to beep n times
+// Function for simultaneous beeping and LED blinking
+void alertWithBeepAndBlink(byte n, int frequency, int duration) {
+  for (int i = 0; i < n; i++) {
+    // Start tone and turn on LED simultaneously
+    tone(buzzer, frequency, duration);
+    digitalWrite(ledR, LOW);
+
+    delay(duration);
+
+    // Turn off LED
+    digitalWrite(ledR, HIGH);
+
+    // Small gap between beeps
+    delay(200);
+  }
+  noTone(buzzer);
+}
+
+// Function to beep n times (kept for other parts of the code)
 void beepNTimes(byte n, int frequency, int beepLength) {
   for (int i = 0; i < n; i++) {
     tone(buzzer, frequency, beepLength);
@@ -164,12 +184,12 @@ void signalSound(bool isSearching) {
   noTone(buzzer);
 }
 
-// Function to blink specific led n times
-void blinkLed(byte ledPin, int blinkCount) {
+// Function to blink specific led n times (kept for reference)
+void blinkRedLed(int blinkCount) {
   for (int i = 0; i < blinkCount; i++) {
-    digitalWrite(ledPin, LOW);
+    digitalWrite(ledR, LOW);
     delay(100);
-    digitalWrite(ledPin, HIGH);
+    digitalWrite(ledR, HIGH);
     delay(100);
   }
 }
