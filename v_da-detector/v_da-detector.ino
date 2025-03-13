@@ -2,126 +2,177 @@
 #include <TinyGPS++.h>
 #include "coordinates.h"
 
-#define GPS_RX 12  // D6 (GPIO12)
-#define GPS_TX 13  // D7 (GPIO13)
-#define GPS_BAUD 9600
-#define PIEZO 14  // D5 (GPIO 14)
-#define LED_R 5   // D1 (GPIO5)
-#define LED_G 4   // D2 (GPIO4)
+// Connections
+const byte LED_G = 4;    // D2 (GPIO4)
+const byte LED_R = 5;    // D1 (GPIO5)
+const byte GPS_RX = 12;  // D6 (GPIO12)
+const byte GPS_TX = 13;  // D7 (GPIO13)
+const byte BUZZER = 14;  // D5 (GPIO 14)
 
-SoftwareSerial gpsSerial(GPS_TX, GPS_RX);  // TX (to GPS RX), RX (to GPS TX)
+// Instance creation
+SoftwareSerial gpsSerial(GPS_TX, GPS_RX);
 TinyGPSPlus gps;
 
+// GPS data
+#define GPS_BAUD 9600
 double currentLat, currentLon;
 int currentSpeed;
+
+// Buzzer
 bool playedSignalFoundSound = false;
 bool playedNoSignalSound = false;
-unsigned long lastBeepTime = 0;
-bool within400Meters = false;
+
+// Presence in proximity range
+bool withinProxRange = false;
+#define PROX_RANGE 4000
 
 void setup() {
+  // Start serial communication
   Serial.begin(115200);
   gpsSerial.begin(GPS_BAUD);
-  pinMode(PIEZO, OUTPUT);
-  pinMode(LED_R, OUTPUT);
+
+  // Set output pins
+  pinMode(BUZZER, OUTPUT);
   pinMode(LED_G, OUTPUT);
-  digitalWrite(LED_R, HIGH);
+  pinMode(LED_R, OUTPUT);
+
+  // Turn leds off at boot
   digitalWrite(LED_G, HIGH);
+  digitalWrite(LED_R, HIGH);
+
+  // Play boot sound and wait 2 seconds
   bootUpSound();
   delay(2000);
 }
 
 void loop() {
+  // GPS is available
   while (gpsSerial.available() > 0) {
     gps.encode(gpsSerial.read());
-
+    // Found satellite(s) -> valid data
     if (gps.location.isValid()) {
+      // Play sound once when signal is found
       if (!playedSignalFoundSound) {
-        signalFoundSound();
+        signalSound(false);
         playedSignalFoundSound = true;
         playedNoSignalSound = false;
       }
 
+      // Turn green led on
+      digitalWrite(LED_G, LOW);
+      digitalWrite(LED_R, HIGH);
+
+      // Get current GPS data
       currentLat = gps.location.lat();
       currentLon = gps.location.lng();
       currentSpeed = gps.speed.kmph();
-      checkProximityToTraffipax();
 
-      digitalWrite(LED_R, HIGH);
-      digitalWrite(LED_G, LOW);
-    } else {
+      // Check distance to nearest traffipax
+      checkProximityToTraffipax();
+    }
+    // If no satellites are found
+    else {
+      // Play sound once when signal isn't found
       if (!playedNoSignalSound) {
         Serial.println("No GPS fix yet...");
-        signalSearchSound();
+        signalSound(true);
         playedNoSignalSound = true;
         playedSignalFoundSound = false;
       }
+
+      // Turn red led on
       digitalWrite(LED_G, HIGH);
       digitalWrite(LED_R, LOW);
     }
   }
 }
 
+// Functon to check distance between traffipax and you
 void checkProximityToTraffipax() {
+  // Variable to track is traffipax is near
   bool traffipaxFound = false;
 
+  // Loop through coordinates
   for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++) {
+    // Get distance for each coordinate from your location
     double distance = getDistance(currentLat, currentLon, coordinates[i].lat, coordinates[i].lon);
-    Serial.println(distance);
 
-    if (distance <= 3000) {
+    // If distance is within proximity range
+    if (distance <= PROX_RANGE) {
       traffipaxFound = true;
 
-      if (!within400Meters) {
+      // Trigger proximity range alert once
+      if (!withinProxRange) {
+        // Bee to indicate near traffipax
         Serial.println("Warning! Approaching a traffipax!");
-        beep3Times();
-        within400Meters = true;
+        beepNTimes(coordinates[i].limit, 4000, 200);
+        withinProxRange = true;
       }
       break;
     }
   }
 
   if (!traffipaxFound) {
-    within400Meters = false;
+    withinProxRange = false;
   }
 }
 
-void beep3Times() {
-  tone(PIEZO, 4000, 200);
-  delay(250);
-  tone(PIEZO, 4000, 200);
-  delay(250);
-  tone(PIEZO, 4000, 200);
-  delay(250);
-  noTone(PIEZO);
+// Function to beep n/10 times
+void beepNTimes(byte n, int frequency, int beepLength) {
+  n = n / 10;
+  for (int i = 0; i < n; i++) {
+    tone(BUZZER, frequency, beepLength);
+    delay(beepLength + 50);
+  }
+  noTone(BUZZER);
 }
 
+// Boot beeping sound
 void bootUpSound() {
-  tone(PIEZO, 1000, 200);
-  delay(250);
-  tone(PIEZO, 1500, 200);
-  delay(250);
-  tone(PIEZO, 2000, 200);
-  delay(250);
-  noTone(PIEZO);
+  int baseFreq = 1000;
+  for (int i = 0; i < 3; i++) {
+    tone(BUZZER, baseFreq, 200);
+    delay(250);
+    baseFreq += 500;
+  }
+  noTone(BUZZER);
 }
 
-void signalSearchSound() {
-  tone(PIEZO, 1000, 1500);
+// Function to play sound based on state
+void signalSound(bool isSearching) {
+  int baseFreq;
+  bool toReduce;
+  // Signal not found
+  if (isSearching) {
+    baseFreq = 2500;
+    toReduce = true;
+  }
+  // Signal found
+  else {
+    baseFreq = 2000;
+    toReduce = false;
+  }
+  for (int i = 0; i < 2; i++) {
+    tone(BUZZER, baseFreq, 200);
+    delay(250);
+    // Reduce frequency by 500
+    if (toReduce) {
+      baseFreq -= 500;
+    }
+    // Increase frequency by 500
+    else {
+      baseFreq += 500;
+    }
+  }
+  noTone(BUZZER);
 }
 
-void signalFoundSound() {
-  tone(PIEZO, 2000, 200);
-  delay(250);
-  tone(PIEZO, 2500, 200);
-  delay(250);
-  noTone(PIEZO);
-}
-
+// Function to convert degrees to radians
 double toRadians(double degree) {
   return degree * M_PI / 180.0;
 }
 
+// Function to calculate distance between 2 latitude and longitude points
 double getDistance(double lat1, double lon1, double lat2, double lon2) {
   // Earth radius in meters
   const double R = 6371000.0;
