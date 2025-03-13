@@ -17,7 +17,7 @@ int currentSpeed;
 bool playedSignalFoundSound = false;
 bool playedNoSignalSound = false;
 unsigned long lastBeepTime = 0;
-bool within300Meters = false;
+bool within400Meters = false;
 
 void setup() {
   Serial.begin(115200);
@@ -41,19 +41,14 @@ void loop() {
         playedSignalFoundSound = true;
         playedNoSignalSound = false;
       }
-      
+
       currentLat = gps.location.lat();
       currentLon = gps.location.lng();
       currentSpeed = gps.speed.kmph();
-
-      Serial.println(currentLat);
-      Serial.println(currentLon);
-      Serial.println(currentSpeed);
-
       checkProximityToTraffipax();
 
       digitalWrite(LED_R, HIGH);
-      digitalWrite(LED_G, LOW);  // Green LED on
+      digitalWrite(LED_G, LOW);
     } else {
       if (!playedNoSignalSound) {
         Serial.println("No GPS fix yet...");
@@ -62,26 +57,43 @@ void loop() {
         playedSignalFoundSound = false;
       }
       digitalWrite(LED_G, HIGH);
-      digitalWrite(LED_R, LOW);  // Red LED on
+      digitalWrite(LED_R, LOW);
     }
-  }
-
-  if (within300Meters && millis() - lastBeepTime >= 3000) {
-    shortBeep();
-    lastBeepTime = millis();
   }
 }
 
 void checkProximityToTraffipax() {
-  within300Meters = false;
+  bool traffipaxFound = false;
+
   for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++) {
     double distance = getDistance(currentLat, currentLon, coordinates[i].lat, coordinates[i].lon);
-    if (distance <= 300) {
-      Serial.println("Warning! Approaching a traffipax!");
-      within300Meters = true;
+    Serial.println(distance);
+
+    if (distance <= 3000) {
+      traffipaxFound = true;
+
+      if (!within400Meters) {
+        Serial.println("Warning! Approaching a traffipax!");
+        beep3Times();
+        within400Meters = true;
+      }
       break;
     }
   }
+
+  if (!traffipaxFound) {
+    within400Meters = false;
+  }
+}
+
+void beep3Times() {
+  tone(PIEZO, 4000, 200);
+  delay(250);
+  tone(PIEZO, 4000, 200);
+  delay(250);
+  tone(PIEZO, 4000, 200);
+  delay(250);
+  noTone(PIEZO);
 }
 
 void bootUpSound() {
@@ -106,17 +118,30 @@ void signalFoundSound() {
   noTone(PIEZO);
 }
 
-void shortBeep() {
-  tone(PIEZO, 4000, 700);
-  delay(1000);
-  noTone(PIEZO);
+double toRadians(double degree) {
+  return degree * M_PI / 180.0;
 }
 
 double getDistance(double lat1, double lon1, double lat2, double lon2) {
-  const double R = 6371000;  // Earth radius in meters
-  double dLat = radians(lat2 - lat1);
-  double dLon = radians(lon2 - lon1);
-  double a = sin(dLat / 2) * sin(dLat / 2) + cos(radians(lat1)) * cos(radians(lat2)) * sin(dLon / 2) * sin(dLon / 2);
+  // Earth radius in meters
+  const double R = 6371000.0;
+
+  // Convert latitudes and longitudes to radians
+  lat1 = toRadians(lat1);
+  lat2 = toRadians(lat2);
+  lon1 = toRadians(lon1);
+  lon2 = toRadians(lon2);
+
+  // Get distance in lat, lon
+  double distance_lat = lat2 - lat1;
+  double distance_lon = lon2 - lon1;
+
+  // Square of half the chord length
+  double a = sin(distance_lat / 2) * sin(distance_lat / 2) + cos(lat1) * cos(lat2) * sin(distance_lon / 2) * sin(distance_lon / 2);
+
+  // Angular distance in radians
   double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+  // Distance in meters
   return R * c;
 }

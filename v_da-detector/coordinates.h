@@ -1,6 +1,6 @@
 struct Coordinate {
-    float lat;
-    float lon;
+    double lat;
+    double lon;
     int type;
     int limit;
 };
