@@ -24,7 +24,7 @@ bool playedNoSignalSound = false;
 
 // Presence in proximity range
 bool withinProxRange = false;
-#define PROX_RANGE 3000  // meters
+#define PROX_RANGE 300  // meters
 
 void setup() {
   // Set output pins
