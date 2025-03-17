@@ -27,9 +27,6 @@ bool withinProxRange = false;
 #define PROX_RANGE 300  // meters
 
 void setup() {
-  // Start serial communication
-  gpsSerial.begin(GPS_BAUD);
-
   // Set output pins
   pinMode(buzzer, OUTPUT);
   pinMode(ledG, OUTPUT);
@@ -39,27 +36,44 @@ void setup() {
   digitalWrite(ledG, HIGH);
   digitalWrite(ledR, HIGH);
 
-  // Play boot sound and wait 2 seconds
+  // Add a small delay before starting GPS serial
+  delay(1000);
+  gpsSerial.begin(GPS_BAUD);
+
+  // Play boot sound with reduced intensity
   bootUpSound();
-  delay(2000);
 }
 
 void loop() {
   // GPS is available
   while (gpsSerial.available() > 0) {
     gps.encode(gpsSerial.read());
+  }
+
+  // Process GPS data every 500ms
+  static unsigned long lastProcessTime = 0;
+  if (millis() - lastProcessTime > 500) {
+    lastProcessTime = millis();
+
     // Found satellite(s) -> valid data
     if (gps.location.isValid()) {
-      // Play sound once when signal is found
+      // Play sound once when signal is found - only if not already played
       if (!playedSignalFoundSound) {
+        // First update LED status
+        digitalWrite(ledG, LOW);
+        digitalWrite(ledR, HIGH);
+
+        // Then play sound with slight delay
+        delay(100);
         signalSound(false);
+
         playedSignalFoundSound = true;
         playedNoSignalSound = false;
+      } else {
+        // Turn green led on if not already on
+        digitalWrite(ledG, LOW);
+        digitalWrite(ledR, HIGH);
       }
-
-      // Turn green led on
-      digitalWrite(ledG, LOW);
-      digitalWrite(ledR, HIGH);
 
       // Get current GPS data
       currentLat = gps.location.lat();
@@ -71,21 +85,31 @@ void loop() {
     }
     // If no satellites are found
     else {
-      // Play sound once when signal isn't found
+      // Play sound once when signal isn't found - only if not already played
       if (!playedNoSignalSound) {
+        // First update LED status
+        digitalWrite(ledG, HIGH);
+        digitalWrite(ledR, LOW);
+
+        // Then play sound with slight delay
+        delay(100);
         signalSound(true);
+
         playedNoSignalSound = true;
         playedSignalFoundSound = false;
+      } else {
+        // Turn red led on if not already on
+        digitalWrite(ledG, HIGH);
+        digitalWrite(ledR, LOW);
       }
-
-      // Turn red led on
-      digitalWrite(ledG, HIGH);
-      digitalWrite(ledR, LOW);
     }
   }
+
+  // Small delay to prevent watchdog issues
+  delay(10);
 }
 
-// Functon to check distance between traffipax and you
+// Function to check distance between traffipax and you
 void checkProximityToTraffipax() {
   bool traffipaxFound = false;
 
@@ -98,11 +122,13 @@ void checkProximityToTraffipax() {
       if (!withinProxRange) {
         withinProxRange = true;  // Prevent repeated alerts
 
-        // Turn OFF Green LED before alert
+        // First, change LED state
         digitalWrite(ledG, HIGH);
+        digitalWrite(ledR, LOW);
+        delay(100);  // Brief delay
 
-        // Beep & Blink 5 times SIMULTANEOUSLY
-        alertWithBeepAndBlink(5, 4000, 200);
+        // Then handle alert sequence with staggered timing
+        alertWithStaggeredBeepAndBlink(5);
 
         // Restore LEDs: Red OFF, Green ON
         digitalWrite(ledR, HIGH);
@@ -117,81 +143,47 @@ void checkProximityToTraffipax() {
   }
 }
 
-// Function for simultaneous beeping and LED blinking
-void alertWithBeepAndBlink(byte n, int frequency, int duration) {
-  for (int i = 0; i < n; i++) {
-    // Start tone and turn on LED simultaneously
-    tone(buzzer, frequency, duration);
-    digitalWrite(ledR, LOW);
-
-    delay(duration);
-
-    // Turn off LED
-    digitalWrite(ledR, HIGH);
-
-    // Small gap between beeps
-    delay(200);
-  }
-  noTone(buzzer);
-}
-
-// Function to beep n times (kept for other parts of the code)
-void beepNTimes(byte n, int frequency, int beepLength) {
-  for (int i = 0; i < n; i++) {
-    tone(buzzer, frequency, beepLength);
-    delay(beepLength + 50);
-  }
-  noTone(buzzer);
-}
-
-// Boot beeping sound
-void bootUpSound() {
-  int baseFreq = 1000;
-  for (int i = 0; i < 3; i++) {
-    tone(buzzer, baseFreq, 200);
-    delay(250);
-    baseFreq += 500;
-  }
-  noTone(buzzer);
-}
-
-// Function to play sound based on state
-void signalSound(bool isSearching) {
-  int baseFreq;
-  bool toReduce;
-  // Signal not found
-  if (isSearching) {
-    baseFreq = 2000;
-    toReduce = true;
-  }
-  // Signal found
-  else {
-    baseFreq = 2500;
-    toReduce = false;
-  }
+// Function for staggered beeping and LED blinking
+void alertWithStaggeredBeepAndBlink(byte n) {
   for (int i = 0; i < 2; i++) {
-    tone(buzzer, baseFreq, 200);
-    delay(250);
-    // Reduce frequency by 500
-    if (toReduce) {
-      baseFreq -= 500;
+    for (int j = 0; j < n; j++) {
+      // First turn on LED
+      digitalWrite(ledR, LOW);
+      delay(50);  // Brief delay
+
+      // Then start tone
+      tone(buzzer, 4000, 150);
+      delay(200);  // Duration of beep
+
+      // Turn off LED
+      digitalWrite(ledR, HIGH);
+      noTone(buzzer);
     }
-    // Increase frequency by 500
-    else {
-      baseFreq += 500;
-    }
+    delay(400);
+  }
+}
+
+// Boot beeping sound with reduced intensity
+void bootUpSound() {
+  int baseFreq = 800;
+  for (int i = 0; i < 3; i++) {
+    tone(buzzer, baseFreq, 100);
+    delay(150);
+    baseFreq += 400;
   }
   noTone(buzzer);
 }
 
-// Function to blink specific led n times (kept for reference)
-void blinkRedLed(int blinkCount) {
-  for (int i = 0; i < blinkCount; i++) {
-    digitalWrite(ledR, LOW);
-    delay(100);
-    digitalWrite(ledR, HIGH);
-    delay(100);
-  }
+// Function to play sound based on state - simplified
+void signalSound(bool isSearching) {
+  int freq = isSearching ? 1000 : 2000;
+
+  // Play two simple beeps
+  tone(buzzer, freq, 100);
+  delay(150);
+  tone(buzzer, freq, 100);
+  delay(150);
+  noTone(buzzer);
 }
 
 // Function to convert degrees to radians
