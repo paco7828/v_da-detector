@@ -24,7 +24,7 @@ bool playedNoSignalSound = false;
 
 // Presence in proximity range
 bool withinProxRange = false;
-#define PROX_RANGE 300  // meters
+#define PROX_RANGE 3000  // meters
 
 void setup() {
   // Set output pins
@@ -32,12 +32,10 @@ void setup() {
   pinMode(ledG, OUTPUT);
   pinMode(ledR, OUTPUT);
 
-  // Turn leds off at boot
+  // Turn red led on at boot
   digitalWrite(ledG, HIGH);
-  digitalWrite(ledR, HIGH);
+  digitalWrite(ledR, LOW);
 
-  // Add a small delay before starting GPS serial
-  delay(1000);
   gpsSerial.begin(GPS_BAUD);
 
   // Play boot sound with reduced intensity
@@ -148,15 +146,15 @@ void alertWithStaggeredBeepAndBlink(byte n) {
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < n; j++) {
       // First turn on LED
-      digitalWrite(ledR, LOW);
+      digitalWrite(ledR, HIGH);
       delay(50);  // Brief delay
 
       // Then start tone
       tone(buzzer, 4000, 150);
+      digitalWrite(ledR, LOW);
       delay(200);  // Duration of beep
 
       // Turn off LED
-      digitalWrite(ledR, HIGH);
       noTone(buzzer);
     }
     delay(400);
@@ -176,7 +174,7 @@ void bootUpSound() {
 
 // Function to play sound based on state - simplified
 void signalSound(bool isSearching) {
-  int freq = isSearching ? 1000 : 2000;
+  int freq = isSearching ? 2000 : 4000;
 
   // Play two simple beeps
   tone(buzzer, freq, 100);
