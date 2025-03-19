@@ -57,20 +57,16 @@ void loop() {
     if (gps.location.isValid()) {
       // Play sound once when signal is found - only if not already played
       if (!playedSignalFoundSound) {
-        // First update LED status
-        digitalWrite(ledG, LOW);
-        digitalWrite(ledR, HIGH);
+        // Green led on when not in proximity range
+        if (!withinProxRange) {
+          digitalWrite(ledG, LOW);
+          digitalWrite(ledR, HIGH);
+        }
 
-        // Then play sound with slight delay
-        delay(100);
         signalSound(false);
 
         playedSignalFoundSound = true;
         playedNoSignalSound = false;
-      } else {
-        // Turn green led on if not already on
-        digitalWrite(ledG, LOW);
-        digitalWrite(ledR, HIGH);
       }
 
       // Get current GPS data
@@ -120,24 +116,35 @@ void checkProximityToTraffipax() {
       if (!withinProxRange) {
         withinProxRange = true;  // Prevent repeated alerts
 
-        // First, change LED state
+        // Change LED state - RED when in proximity
         digitalWrite(ledG, HIGH);
         digitalWrite(ledR, LOW);
-        delay(100);  // Brief delay
+        delay(100);
 
-        // Then handle alert sequence with staggered timing
         alertWithStaggeredBeepAndBlink(5);
 
-        // Restore LEDs: Red OFF, Green ON
-        digitalWrite(ledR, HIGH);
-        digitalWrite(ledG, LOW);
+        // Keep RED on after alert
+        digitalWrite(ledR, LOW);
+        digitalWrite(ledG, HIGH);
+      } else {
+        // Ensure RED stays on while in proximity
+        digitalWrite(ledR, LOW);
+        digitalWrite(ledG, HIGH);
       }
       break;
     }
   }
 
-  if (!traffipaxFound) {
-    withinProxRange = false;  // Reset for next detection
+  if (!traffipaxFound && withinProxRange) {
+    withinProxRange = false;
+
+    // Switch back to GREEN when out of proximity
+    digitalWrite(ledR, HIGH);
+    digitalWrite(ledG, LOW);
+  } else if (!traffipaxFound && !withinProxRange) {
+    // Normal operation outside proximity - ensure GREEN is on
+    digitalWrite(ledR, HIGH);
+    digitalWrite(ledG, LOW);
   }
 }
 
@@ -152,9 +159,9 @@ void alertWithStaggeredBeepAndBlink(byte n) {
       // Then start tone
       tone(buzzer, 4000, 150);
       digitalWrite(ledR, LOW);
-      delay(200);  // Duration of beep
+      delay(200);
 
-      // Turn off LED
+      // Turn off Buzzer
       noTone(buzzer);
     }
     delay(400);
