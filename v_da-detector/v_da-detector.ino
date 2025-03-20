@@ -25,6 +25,7 @@ bool playedNoSignalSound = false;
 // Presence in proximity range
 bool withinProxRange = false;
 #define PROX_RANGE 300  // meters
+bool justLeftProxRange = false;
 
 void setup() {
   // Set output pins
@@ -136,15 +137,24 @@ void checkProximityToTraffipax() {
   }
 
   if (!traffipaxFound && withinProxRange) {
+    // We just left the proximity zone - play exit sound
     withinProxRange = false;
+    justLeftProxRange = true;
 
-    // Switch back to GREEN when out of proximity
+    // Switch back to GREEN
     digitalWrite(ledR, HIGH);
     digitalWrite(ledG, LOW);
+
+    // Play the exit sound - 2 second beep at 4000Hz
+    tone(buzzer, 4000, 2000);
+
   } else if (!traffipaxFound && !withinProxRange) {
     // Normal operation outside proximity - ensure GREEN is on
     digitalWrite(ledR, HIGH);
     digitalWrite(ledG, LOW);
+
+    // Reset the flag once we're out
+    justLeftProxRange = false;
   }
 }
 
