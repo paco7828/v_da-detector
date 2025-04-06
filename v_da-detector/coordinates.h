@@ -3,7 +3,7 @@ struct Coordinate {
   double lon;
 };
 
-Coordinate coordinates[] = {
+const Coordinate coordinates[] PROGMEM = {
   { 47.315308, 19.163705 },
   { 47.468751, 18.864466 },
   { 47.589436, 19.142904 },

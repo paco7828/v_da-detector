@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
 #include <TinyGPS++.h>
 #include "coordinates.h"
+#include <avr/pgmspace.h>
 
 // Connections
 const byte ledG = 4;     // D2 (GPIO4)
@@ -109,7 +110,11 @@ void checkProximityToTraffipax() {
   bool traffipaxFound = false;
 
   for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++) {
-    double distance = getDistance(currentLat, currentLon, coordinates[i].lat, coordinates[i].lon);
+    // Access lat + lon from flash memory
+    double lat = pgm_read_float(&coordinates[i].lat);
+    double lon = pgm_read_float(&coordinates[i].lon);
+
+    double distance = getDistance(currentLat, currentLon, lat, lon);
 
     if (distance <= PROX_RANGE) {
       traffipaxFound = true;
