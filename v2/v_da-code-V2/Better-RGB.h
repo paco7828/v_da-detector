@@ -19,15 +19,6 @@ private:
   unsigned long analogBlueOnUntil = 0;
   unsigned long analogColorOnUntil = 0;
 
-  // Blinking variables
-  bool blinkRedState = false;
-  bool blinkGreenState = false;
-  bool blinkBlueState = false;
-  unsigned int blinkRemaining = 0;
-  unsigned long blinkDelay = 0;
-  unsigned long nextBlinkTime = 0;
-  bool blinkPhaseOn = true;
-
 public:
   void begin(byte red, byte green, byte blue, bool commonCathode)
   {
@@ -164,24 +155,6 @@ public:
     {
       setAnalogBlue(0);
       analogBlueOnUntil = 0;
-    }
-
-    // ---------------- Non-blocking blink ----------------
-    if (blinkRemaining > 0 && currentTime >= nextBlinkTime)
-    {
-      if (blinkPhaseOn)
-      {
-        allOff();
-        blinkPhaseOn = false;
-      }
-      else
-      {
-        setDigitalColor(blinkRedState, blinkGreenState, blinkBlueState);
-        blinkPhaseOn = true;
-        blinkRemaining--;
-      }
-
-      nextBlinkTime = currentTime + blinkDelay;
     }
   }
 
@@ -343,19 +316,5 @@ public:
     setDigitalColor(false, false, true); // Blue
     delay(delayMs);
     allOff();
-  }
-
-  // ---------------------------------------------- Blinking functions ----------------------------------------------
-
-  void blinkColorNTimes(bool red, bool green, bool blue, unsigned int n = 1, unsigned int delayMs = 200)
-  {
-    blinkRedState = red;
-    blinkGreenState = green;
-    blinkBlueState = blue;
-    blinkRemaining = n;
-    blinkDelay = delayMs;
-    nextBlinkTime = millis();
-    blinkPhaseOn = true;
-    setDigitalColor(red, green, blue);
   }
 };

@@ -13,7 +13,7 @@ const bool COMMON_CATHODE = false;
 
 // GPS
 const byte GPS_RX = 6;
-const byte GPS_TX = -1; // not used
+const byte GPS_TX = -1;  // not used
 const int GPS_BAUD = 9600;
 double currentLat, currentLon;
 int currentSpeed;
@@ -23,26 +23,29 @@ const byte BUZZER = 7;
 bool playedSignalFoundSound = false;
 bool playedNoSignalSound = false;
 
+// Variables for red LED blinking when searching
+unsigned long lastRedBlinkTime = 0;
+const unsigned long RED_BLINK_INTERVAL = 500;
+
 // Led driver
 const byte DATA_PIN = 8;
 const byte CLK_PIN = 9;
 
 // Proximity range
 bool withinProxRange = false;
-const int PROX_RANGE = 300; // meters
+const int PROX_RANGE = 300;  // meters
 bool justLeftProxRange = false;
 
 // Variables for buzzer flashing sync
 bool buzzerFlashState = false;
 unsigned long buzzerFlashTimer = 0;
-const unsigned long BUZZER_BEEP_INTERVAL = 200; // Same as RGB flash interval
+const unsigned long BUZZER_FLASH_INTERVAL = 200;
 
 // Instances
 BetterGPS gps;
 BetterRGB rgb;
 
-void setup()
-{
+void setup() {
   // Start serial communication
   Serial.begin(115200);
 
@@ -51,29 +54,23 @@ void setup()
 
   // Initialize RGB with pins and common cathode configuration
   rgb.begin(LED_R, LED_G, LED_B, COMMON_CATHODE);
+  rgb.allOff();
 
   // Play boot sound
   bootUpSound();
-
-  // RGB Led startup
-  rgb.flashRGB(300);
 }
 
-void loop()
-{
+void loop() {
   // Update functions for custom classes
   gps.update();
   rgb.update();
 
   // GPS has fix
-  if (gps.hasFix())
-  {
+  if (gps.hasFix()) {
     // Play signal found
-    if (!playedSignalFoundSound)
-    {
+    if (!playedSignalFoundSound) {
       // When not in proximity range
-      if (!withinProxRange)
-      {
+      if (!withinProxRange) {
         // Green Led ON
         rgb.setDigitalGreen(true);
       }
@@ -85,68 +82,79 @@ void loop()
       playedSignalFoundSound = true;
       playedNoSignalSound = false;
     }
-  }
-  else
-  {
+  } else {
     // Play sound once when signal isn't found - only if not already played
-    if (!playedNoSignalSound)
-    {
-      // Green Led ON
-      rgb.setDigitalGreen(true);
-
+    if (!playedNoSignalSound) {
       // Play signal found sound
       signalSound(true);
 
       // Set sound variables accordingly
       playedNoSignalSound = true;
       playedSignalFoundSound = false;
-    }
-    else
-    {
-      // Red Led blinking with 500ms interval when searching for GPS signal
-      rgb.blinkColorNTimes(true, false, false, 1, 500);
+    } else {
+      // Red Led blinking with  interval when searching for GPS signal
+      unsigned long currentTime = millis();
+      if (currentTime - lastRedBlinkTime >= RED_BLINK_INTERVAL) {
+        static bool redLedState = false;
+
+        if (redLedState) {
+          rgb.setDigitalRed(false);
+        } else {
+          rgb.setDigitalRed(true);
+        }
+
+        redLedState = !redLedState;
+        lastRedBlinkTime = currentTime;
+      }
     }
   }
 
-  // Get current GPS data
-  currentLat = gps.getLatitude();
-  currentLon = gps.getLongitude();
-  currentSpeed = gps.getSpeedKmph();
+  // Only check proximity and handle GPS data if we have a valid fix
+  if (gps.hasFix()) {
+    // Get current GPS data
+    Serial.println(currentLat);
+    currentLat = gps.getLatitude();
+    currentLon = gps.getLongitude();
+    currentSpeed = gps.getSpeedKmph();
 
-  // Check distance to nearest traffipax
-  checkProximityToTraffipax();
+    // Check distance to nearest traffipax
+    checkProximityToTraffipax();
 
-  // Handle buzzer flashing when in proximity
-  handleBuzzerFlashing();
+    // Handle buzzer flashing when in proximity
+    handleBuzzerFlashing();
+  } else {
+    // If we lose GPS signal while in proximity, reset proximity state
+    if (withinProxRange) {
+      withinProxRange = false;
+      noTone(BUZZER);
+      rgb.allOff();
+    }
+  }
 
   // Small delay to prevent watchdog issues
   delay(10);
 }
 
 // Function to check distance between traffipax and you
-void checkProximityToTraffipax()
-{
+void checkProximityToTraffipax() {
   bool traffipaxFound = false;
 
-  for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++)
-  {
+  for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++) {
     // Access lat + lon from flash memory
     double lat = pgm_read_float(&coordinates[i].lat);
     double lon = pgm_read_float(&coordinates[i].lon);
 
     double distance = getDistance(currentLat, currentLon, lat, lon);
 
-    if (distance <= PROX_RANGE)
-    {
+    if (distance <= PROX_RANGE) {
       traffipaxFound = true;
 
-      if (!withinProxRange)
-      {
-        withinProxRange = true; // Prevent repeated alerts
+      if (!withinProxRange) {
+        withinProxRange = true;  // Prevent repeated alerts
 
         // Start by turning leds off and begin flashing
         rgb.allOff();
-        buzzerFlashTimer = millis(); // Initialize buzzer timer
+        buzzerFlashTimer = millis();  // Initialize buzzer timer
       }
 
       // Continue red-blue flashing while in proximity
@@ -156,8 +164,7 @@ void checkProximityToTraffipax()
     }
   }
 
-  if (!traffipaxFound && withinProxRange)
-  {
+  if (!traffipaxFound && withinProxRange) {
     // We just left the proximity zone - play exit sound
     withinProxRange = false;
     justLeftProxRange = true;
@@ -171,9 +178,7 @@ void checkProximityToTraffipax()
 
     // Play the exit sound - 2 second beep at 4000Hz
     tone(BUZZER, 4000, 2000);
-  }
-  else if (!traffipaxFound && !withinProxRange)
-  {
+  } else if (!traffipaxFound && !withinProxRange) {
     // Normal operation outside proximity - ensure GREEN is on
     rgb.setDigitalGreen(true);
 
@@ -183,21 +188,15 @@ void checkProximityToTraffipax()
 }
 
 // Function to handle buzzer flashing in sync with RGB
-void handleBuzzerFlashing()
-{
-  if (withinProxRange)
-  {
+void handleBuzzerFlashing() {
+  if (withinProxRange) {
     unsigned long currentTime = millis();
 
-    if (currentTime - buzzerFlashTimer >= BUZZER_BEEP_INTERVAL)
-    {
-      if (buzzerFlashState)
-      {
+    if (currentTime - buzzerFlashTimer >= BUZZER_FLASH_INTERVAL) {
+      if (buzzerFlashState) {
         // Turn buzzer on (beep at 4000Hz for the flash duration)
-        tone(BUZZER, 4000, BUZZER_BEEP_INTERVAL);
-      }
-      else
-      {
+        tone(BUZZER, 4000, BUZZER_FLASH_INTERVAL - 50);  // Slightly shorter than interval
+      } else {
         // Turn buzzer off
         noTone(BUZZER);
       }
@@ -208,12 +207,10 @@ void handleBuzzerFlashing()
   }
 }
 
-// Boot beeping sound
-void bootUpSound()
-{
+// Boot beeping sound with reduced intensity
+void bootUpSound() {
   int baseFreq = 800;
-  for (int i = 0; i < 3; i++)
-  {
+  for (int i = 0; i < 3; i++) {
     tone(BUZZER, baseFreq, 100);
     delay(150);
     baseFreq += 400;
@@ -222,8 +219,7 @@ void bootUpSound()
 }
 
 // Function to play sound based on state
-void signalSound(bool isSearching)
-{
+void signalSound(bool isSearching) {
   int freq = isSearching ? 2000 : 4000;
 
   // Play two simple beeps
@@ -235,14 +231,12 @@ void signalSound(bool isSearching)
 }
 
 // Function to convert degrees to radians
-double toRadians(double degree)
-{
+double toRadians(double degree) {
   return degree * M_PI / 180.0;
 }
 
 // Function to calculate distance between 2 latitude and longitude points
-double getDistance(double lat1, double lon1, double lat2, double lon2)
-{
+double getDistance(double lat1, double lon1, double lat2, double lon2) {
   // Earth radius in meters
   const double R = 6371000.0;
 
