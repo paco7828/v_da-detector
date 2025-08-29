@@ -124,8 +124,7 @@ void loop() {
     // Get current GPS data
     currentLat = gps.getLatitude();
     currentLon = gps.getLongitude();
-    //currentSpeed = gps.getSpeedKmph();
-    currentSpeed = 55;
+    currentSpeed = gps.getSpeedKmph();
 
     // Display speed unless showing mode
     if (!showingModeDisplay) {
