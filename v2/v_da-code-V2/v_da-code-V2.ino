@@ -107,7 +107,10 @@ void loop() {
   handleModeButton();
 
   // Handle non-blocking sounds
-  handleNonBlockingSounds();
+  if (soundActive && millis() >= soundEndTime) {
+    noTone(BUZZER);
+    soundActive = false;
+  }
 
   // Update functions for custom classes
   gps.update();
@@ -258,20 +261,15 @@ void showModeIndication() {
   rgb.keepDigitalGreenFor(500);  // Green blink for 0.5 second
 
   // Reset the red blink timer to prevent immediate red LED activation
-  lastRedBlinkTime = millis() + 600;  // Delay red blinking restart by 600ms
+  lastRedBlinkTime = millis() + 200;  // Delay red blinking restart by 200ms
 
-  // Play mode sound (non-blocking)
-  playModeSound();
-}
-
-// Play sound for mode selection (non-blocking)
-void playModeSound() {
+  // Play mode sound
   tone(BUZZER, 3700, 200);
   soundActive = true;
-  soundEndTime = millis() + 250;  // Just the tone duration, no extra delay
+  soundEndTime = millis() + 250;
 }
 
-// Handle speed limit warnings (now non-blocking)
+// Handle speed limit warnings
 void handleSpeedLimitWarning() {
   // If no speed limit mode is set, do nothing
   if (currentSpeedMode == NONE) {
@@ -301,10 +299,10 @@ void handleSpeedLimitWarning() {
       warningInterval = 250;  // 0.25 second interval
     } else {
       // 15+ km/h over: fast beeping
-      warningInterval = 150;  // 0.1 second interval
+      warningInterval = 150;  // 0.15 second interval
     }
 
-    // Handle beeping timing (non-blocking)
+    // Handle beeping timing
     unsigned long currentTime = millis();
     if (currentTime - lastSpeedWarningTime >= warningInterval) {
       if (!speedWarningBeepActive) {
@@ -322,7 +320,7 @@ void handleSpeedLimitWarning() {
       }
     }
 
-    // Handle LED state changes (non-blocking)
+    // Handle LED state changes
     if (speedWarningLedActive) {
       if (currentTime >= speedWarningLedEndTime) {
         if (currentTime < lastSpeedWarningTime + warningInterval) {
@@ -351,14 +349,6 @@ void handleSpeedLimitWarning() {
       speedWarningLedActive = false;
       noTone(BUZZER);
     }
-  }
-}
-
-// Handle non-blocking sounds
-void handleNonBlockingSounds() {
-  if (soundActive && millis() >= soundEndTime) {
-    noTone(BUZZER);
-    soundActive = false;
   }
 }
 
