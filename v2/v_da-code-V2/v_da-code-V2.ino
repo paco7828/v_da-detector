@@ -53,14 +53,27 @@ enum SpeedMode {
 
 SpeedMode currentSpeedMode = NONE;
 int speedLimits[5] = { 0, 50, 90, 110, 130 };
-bool buttonPressed = false;
+
+// Button handling variables
 bool lastButtonState = HIGH;
+unsigned long buttonPressStartTime = 0;
+bool buttonHoldProcessed = false;
+const unsigned long BUTTON_HOLD_TIME = 1500;  // 1.5 seconds for hold-to-reset
+
 unsigned long modeDisplayEndTime = 0;
 bool showingModeDisplay = false;
 
-// Speed warning variables
+// Speed warning variables - made non-blocking
 unsigned long lastSpeedWarningTime = 0;
 bool isSpeedWarningActive = false;
+unsigned long speedWarningBeepEndTime = 0;
+bool speedWarningBeepActive = false;
+unsigned long speedWarningLedEndTime = 0;
+bool speedWarningLedActive = false;
+
+// Non-blocking sound variables
+unsigned long soundEndTime = 0;
+bool soundActive = false;
 
 // Instances
 BetterGPS gps;
@@ -92,6 +105,9 @@ void setup() {
 void loop() {
   // Handle mode button press
   handleModeButton();
+
+  // Handle non-blocking sounds
+  handleNonBlockingSounds();
 
   // Update functions for custom classes
   gps.update();
@@ -139,6 +155,7 @@ void loop() {
       handleSpeedLimitWarning();
     } else if (isSpeedWarningActive) {
       isSpeedWarningActive = false;
+      speedWarningBeepActive = false;
       noTone(BUZZER);
     }
 
@@ -171,6 +188,7 @@ void loop() {
 
     // Stop speed warnings when no GPS
     isSpeedWarningActive = false;
+    speedWarningBeepActive = false;
     noTone(BUZZER);
   }
 
@@ -178,21 +196,44 @@ void loop() {
   delay(10);
 }
 
-// Handle mode button press with debouncing
+// Handle mode button press with debouncing and hold-to-reset
 void handleModeButton() {
   bool currentButtonState = digitalRead(MODE_SW);
 
   // Button pressed (falling edge detection)
   if (lastButtonState == HIGH && currentButtonState == LOW) {
-    // Cycle through modes
-    currentSpeedMode = (SpeedMode)((currentSpeedMode + 1) % 5);
+    buttonPressStartTime = millis();
+    buttonHoldProcessed = false;
+  }
 
-    // Show mode indication
-    showModeIndication();
+  // Button held down - check for hold-to-reset
+  if (currentButtonState == LOW && !buttonHoldProcessed) {
+    if (millis() - buttonPressStartTime >= BUTTON_HOLD_TIME) {
+      // Hold detected - reset to NONE mode
+      currentSpeedMode = NONE;
+      showModeIndication();
+      buttonHoldProcessed = true;
 
-    // Stop any active speed warnings
-    isSpeedWarningActive = false;
-    noTone(BUZZER);
+      // Stop any active speed warnings
+      isSpeedWarningActive = false;
+      speedWarningBeepActive = false;
+      noTone(BUZZER);
+    }
+  }
+
+  // Button released (rising edge detection)
+  if (lastButtonState == LOW && currentButtonState == HIGH) {
+    // Only process short press if hold wasn't already processed
+    if (!buttonHoldProcessed) {
+      // Short press - cycle through modes
+      currentSpeedMode = (SpeedMode)((currentSpeedMode + 1) % 5);
+      showModeIndication();
+
+      // Stop any active speed warnings
+      isSpeedWarningActive = false;
+      speedWarningBeepActive = false;
+      noTone(BUZZER);
+    }
   }
 
   lastButtonState = currentButtonState;
@@ -219,23 +260,23 @@ void showModeIndication() {
   // Reset the red blink timer to prevent immediate red LED activation
   lastRedBlinkTime = millis() + 600;  // Delay red blinking restart by 600ms
 
-  // Play mode sound
+  // Play mode sound (non-blocking)
   playModeSound();
 }
 
-// Play sound for mode selection
+// Play sound for mode selection (non-blocking)
 void playModeSound() {
-  // Single beep at 2000Hz for all mode switches
   tone(BUZZER, 3700, 200);
-  delay(250);
-  noTone(BUZZER);
+  soundActive = true;
+  soundEndTime = millis() + 250;  // Just the tone duration, no extra delay
 }
 
-// Handle speed limit warnings
+// Handle speed limit warnings (now non-blocking)
 void handleSpeedLimitWarning() {
   // If no speed limit mode is set, do nothing
   if (currentSpeedMode == NONE) {
     isSpeedWarningActive = false;
+    speedWarningBeepActive = false;
     return;
   }
 
@@ -257,32 +298,67 @@ void handleSpeedLimitWarning() {
       warningInterval = 500;  // 0.5 second interval
     } else if (speedDifference <= 15) {
       // 6-15 km/h over: medium beeping
-      warningInterval = 200;  // 0.25 second interval
+      warningInterval = 250;  // 0.25 second interval
     } else {
       // 15+ km/h over: fast beeping
-      warningInterval = 100;  // 0.1 second interval
+      warningInterval = 150;  // 0.1 second interval
     }
 
-    // Handle beeping timing
+    // Handle beeping timing (non-blocking)
     unsigned long currentTime = millis();
     if (currentTime - lastSpeedWarningTime >= warningInterval) {
-      tone(BUZZER, 3700, 100);  // Short beep
+      if (!speedWarningBeepActive) {
+        tone(BUZZER, 3700, 100);  // Short beep
+        speedWarningBeepActive = true;
+        speedWarningBeepEndTime = currentTime + 100;
 
-      // Flash red LED briefly to indicate speed warning
-      rgb.setDigitalColor(true, false, false);
-      delay(warningInterval / 2);
-      rgb.setDigitalColor(false, false, true);
-      delay(warningInterval / 2);
-      rgb.allOff();
+        // Start red-blue LED flashing cycle
+        rgb.allOff();                             // Clear all LEDs first
+        rgb.setDigitalColor(true, false, false);  // Red first
+        speedWarningLedActive = true;
+        speedWarningLedEndTime = currentTime + (warningInterval / 2);
 
-      lastSpeedWarningTime = currentTime;
+        lastSpeedWarningTime = currentTime;
+      }
     }
+
+    // Handle LED state changes (non-blocking)
+    if (speedWarningLedActive) {
+      if (currentTime >= speedWarningLedEndTime) {
+        if (currentTime < lastSpeedWarningTime + warningInterval) {
+          // Switch to blue for second half
+          rgb.allOff();  // Clear all LEDs first
+          rgb.setDigitalColor(false, false, true);
+          speedWarningLedEndTime = lastSpeedWarningTime + warningInterval;
+        } else {
+          // End of cycle - turn off LED and prepare for next cycle
+          rgb.allOff();
+          speedWarningLedActive = false;
+        }
+      }
+    }
+
+    // Reset beep flag when beep ends
+    if (speedWarningBeepActive && currentTime >= speedWarningBeepEndTime) {
+      speedWarningBeepActive = false;
+    }
+
   } else {
     // Under speed limit - stop warnings
     if (isSpeedWarningActive) {
       isSpeedWarningActive = false;
+      speedWarningBeepActive = false;
+      speedWarningLedActive = false;
       noTone(BUZZER);
     }
+  }
+}
+
+// Handle non-blocking sounds
+void handleNonBlockingSounds() {
+  if (soundActive && millis() >= soundEndTime) {
+    noTone(BUZZER);
+    soundActive = false;
   }
 }
 
@@ -305,6 +381,7 @@ void checkProximityToTraffipax() {
 
         // Stop any speed warnings when entering traffipax proximity
         isSpeedWarningActive = false;
+        speedWarningBeepActive = false;
         noTone(BUZZER);
 
         // Start by turning leds off and begin flashing
