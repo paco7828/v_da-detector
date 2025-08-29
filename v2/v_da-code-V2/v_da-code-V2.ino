@@ -34,7 +34,7 @@ const byte CLK_PIN = 9;
 
 // Proximity range
 bool withinProxRange = false;
-const int PROX_RANGE = 300;  // meters
+int proximityRange = 300;  // meters
 bool justLeftProxRange = false;
 
 // Variables for buzzer flashing sync
@@ -364,6 +364,20 @@ void handleNonBlockingSounds() {
 
 // Function to check distance between traffipax and you
 void checkProximityToTraffipax() {
+  // Adjust proximity range based on speed
+  if(currentSpeed <= 50){
+    // below or at 50km/h
+    proximityRange = 300; // meters
+  }
+  else if(currentSpeed <= 70){
+    // between 51 and 70km/h
+    proximityRange = 400; // meters
+  }
+  else{
+    // above 70km/h
+    proximityRange = 500; // meters
+  }
+
   bool traffipaxFound = false;
 
   for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++) {
@@ -373,7 +387,7 @@ void checkProximityToTraffipax() {
 
     double distance = getDistance(currentLat, currentLon, lat, lon);
 
-    if (distance <= PROX_RANGE) {
+    if (distance <= proximityRange) {
       traffipaxFound = true;
 
       if (!withinProxRange) {
