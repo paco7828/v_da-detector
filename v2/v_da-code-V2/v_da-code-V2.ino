@@ -113,7 +113,7 @@ void loop() {
     // Play signal found once
     if (!playedSignalFoundSound) {
       if (!withinProxRange) {
-        rgb.setDigitalRed(false); // Red off to prevent both colors present
+        rgb.setDigitalRed(false);   // Red off to prevent both colors present
         rgb.setDigitalGreen(true);  // Green LED ON
       }
       signalSound(false);  // Found signal sound
@@ -124,7 +124,8 @@ void loop() {
     // Get current GPS data
     currentLat = gps.getLatitude();
     currentLon = gps.getLongitude();
-    currentSpeed = gps.getSpeedKmph();
+    //currentSpeed = gps.getSpeedKmph();
+    currentSpeed = 55;
 
     // Display speed unless showing mode
     if (!showingModeDisplay) {
@@ -257,7 +258,7 @@ void handleSpeedLimitWarning() {
       warningInterval = 500;  // 0.5 second interval
     } else if (speedDifference <= 15) {
       // 6-15 km/h over: medium beeping
-      warningInterval = 250;  // 0.25 second interval
+      warningInterval = 200;  // 0.25 second interval
     } else {
       // 15+ km/h over: fast beeping
       warningInterval = 100;  // 0.1 second interval
@@ -269,7 +270,10 @@ void handleSpeedLimitWarning() {
       tone(BUZZER, 3700, 100);  // Short beep
 
       // Flash red LED briefly to indicate speed warning
-      rgb.flashRB(warningInterval);
+      rgb.setDigitalColor(true, false, false);
+      delay(warningInterval / 2);
+      rgb.setDigitalColor(false, false, true);
+      delay(warningInterval / 2);
 
       lastSpeedWarningTime = currentTime;
     }
