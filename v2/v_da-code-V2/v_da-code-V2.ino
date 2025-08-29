@@ -1,5 +1,6 @@
 #include "Better-GPS.h"
 #include "Better-RGB.h"
+#include "GN1650.h"
 #include "coordinates.h"
 
 // Mode switch button
@@ -44,6 +45,7 @@ const unsigned long BUZZER_FLASH_INTERVAL = 200;
 // Instances
 BetterGPS gps;
 BetterRGB rgb;
+GN1650 ledDriver;
 
 void setup() {
   // Start serial communication
@@ -55,6 +57,13 @@ void setup() {
   // Initialize RGB with pins and common cathode configuration
   rgb.begin(LED_R, LED_G, LED_B, COMMON_CATHODE);
   rgb.allOff();
+
+  // Start GN1650
+  ledDriver.begin(DATA_PIN, CLK_PIN);
+
+  // Set brightness and turn display on
+  ledDriver.setBrightness(7);
+  ledDriver.displayOn();
 
   // Play boot sound
   bootUpSound();
@@ -82,6 +91,19 @@ void loop() {
       playedSignalFoundSound = true;
       playedNoSignalSound = false;
     }
+
+    // Get current GPS data
+    currentLat = gps.getLatitude();
+    currentLon = gps.getLongitude();
+    currentSpeed = gps.getSpeedKmph();
+
+    ledDriver.displayNumber(currentSpeed);
+
+    // Check distance to nearest traffipax
+    checkProximityToTraffipax();
+
+    // Handle buzzer flashing when in proximity
+    handleBuzzerFlashing();
   } else {
     // Play sound once when signal isn't found - only if not already played
     if (!playedNoSignalSound) {
@@ -107,23 +129,8 @@ void loop() {
         lastRedBlinkTime = currentTime;
       }
     }
-  }
 
-  // Only check proximity and handle GPS data if we have a valid fix
-  if (gps.hasFix()) {
-    // Get current GPS data
-    Serial.println(currentLat);
-    currentLat = gps.getLatitude();
-    currentLon = gps.getLongitude();
-    currentSpeed = gps.getSpeedKmph();
-
-    // Check distance to nearest traffipax
-    checkProximityToTraffipax();
-
-    // Handle buzzer flashing when in proximity
-    handleBuzzerFlashing();
-  } else {
-    // If we lose GPS signal while in proximity, reset proximity state
+    // When no GPS fix and in proximity range
     if (withinProxRange) {
       withinProxRange = false;
       noTone(BUZZER);
