@@ -90,6 +90,9 @@ void setup() {
 
   // Play boot sound
   bootUpSound();
+
+  // Delay to prevent red and green Led lighting up at the same time
+  delay(2000);
 }
 
 void loop() {
@@ -236,7 +239,7 @@ void showModeIndication() {
 // Play sound for mode selection (same for all modes)
 void playModeSound() {
   // Single beep at 2000Hz for all mode switches
-  tone(BUZZER, 2000, 200);
+  tone(BUZZER, 3700, 200);
   delay(250);
   noTone(BUZZER);
 }
@@ -261,26 +264,22 @@ void handleSpeedLimitWarning() {
 
     // Calculate warning intensity based on speed difference
     unsigned long warningInterval;
-    int warningFreq;
 
     if (speedDifference <= 10) {
       // 1-10 km/h over: slow beeping
-      warningInterval = 1000;  // 1 second interval
-      warningFreq = 2000;
+      warningInterval = 500;  // 1 second interval
     } else if (speedDifference <= 20) {
       // 11-20 km/h over: medium beeping
-      warningInterval = 500;  // 0.5 second interval
-      warningFreq = 2500;
+      warningInterval = 300;  // 0.5 second interval
     } else {
       // 21+ km/h over: fast beeping
-      warningInterval = 250;  // 0.25 second interval
-      warningFreq = 3000;
+      warningInterval = 150;  // 0.25 second interval
     }
 
     // Handle beeping timing
     unsigned long currentTime = millis();
     if (currentTime - lastSpeedWarningTime >= warningInterval) {
-      tone(BUZZER, warningFreq, 100);  // Short beep
+      tone(BUZZER, 3700, 100);  // Short beep
 
       // Flash red LED briefly to indicate speed warning
       rgb.keepDigitalRedFor(100);
@@ -342,7 +341,7 @@ void checkProximityToTraffipax() {
     noTone(BUZZER);
 
     // Play the exit sound - 2 second beep at 4000Hz
-    tone(BUZZER, 4000, 2000);
+    tone(BUZZER, 3700, 2000);
   } else if (!traffipaxFound && !withinProxRange) {
     // Normal operation outside proximity - ensure GREEN is on (unless speed warning is active)
     if (!isSpeedWarningActive) {
@@ -362,7 +361,7 @@ void handleBuzzerFlashing() {
     if (currentTime - buzzerFlashTimer >= BUZZER_FLASH_INTERVAL) {
       if (buzzerFlashState) {
         // Turn buzzer on (beep at 4000Hz for the flash duration)
-        tone(BUZZER, 4000, BUZZER_FLASH_INTERVAL - 50);  // Slightly shorter than interval
+        tone(BUZZER, 3700, BUZZER_FLASH_INTERVAL - 50);  // Slightly shorter than interval
       } else {
         // Turn buzzer off
         noTone(BUZZER);
@@ -376,18 +375,18 @@ void handleBuzzerFlashing() {
 
 // Boot beeping sound with reduced intensity
 void bootUpSound() {
-  int baseFreq = 800;
+  int baseFreq = 3300;
   for (int i = 0; i < 3; i++) {
     tone(BUZZER, baseFreq, 100);
     delay(150);
-    baseFreq += 400;
+    baseFreq += 200;
   }
   noTone(BUZZER);
 }
 
 // Function to play sound based on state
 void signalSound(bool isSearching) {
-  int freq = isSearching ? 2000 : 4000;
+  int freq = isSearching ? 2500 : 4000;
 
   // Play two simple beeps
   tone(BUZZER, freq, 100);
