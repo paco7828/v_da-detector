@@ -68,9 +68,6 @@ BetterRGB rgb;
 GN1650 ledDriver;
 
 void setup() {
-  // Start serial communication
-  Serial.begin(115200);
-
   // Initialize button
   pinMode(MODE_SW, INPUT_PULLUP);
 
@@ -90,9 +87,6 @@ void setup() {
 
   // Play boot sound
   bootUpSound();
-
-  // Delay to prevent red and green Led lighting up at the same time
-  delay(2000);
 }
 
 void loop() {
@@ -119,6 +113,7 @@ void loop() {
     // Play signal found once
     if (!playedSignalFoundSound) {
       if (!withinProxRange) {
+        rgb.setDigitalRed(false); // Red off to prevent both colors present
         rgb.setDigitalGreen(true);  // Green LED ON
       }
       signalSound(false);  // Found signal sound
@@ -195,14 +190,6 @@ void handleModeButton() {
     // Show mode indication
     showModeIndication();
 
-    // ---- PRINT TO SERIAL ----
-    if (currentSpeedMode == NONE) {
-      Serial.println("Mode: NONE (no speed limit)");
-    } else {
-      Serial.print("Mode: LIMIT_");
-      Serial.println(speedLimits[currentSpeedMode]);
-    }
-
     // Stop any active speed warnings
     isSpeedWarningActive = false;
     noTone(BUZZER);
@@ -226,17 +213,17 @@ void showModeIndication() {
   // Turn off all LEDs first to prevent color mixing
   rgb.allOff();
 
-  // Green blink for all modes (same indication for all)
+  // Green blink for all modes
   rgb.keepDigitalGreenFor(500);  // Green blink for 0.5 second
 
   // Reset the red blink timer to prevent immediate red LED activation
   lastRedBlinkTime = millis() + 600;  // Delay red blinking restart by 600ms
 
-  // Play mode sound (same for all modes)
+  // Play mode sound
   playModeSound();
 }
 
-// Play sound for mode selection (same for all modes)
+// Play sound for mode selection
 void playModeSound() {
   // Single beep at 2000Hz for all mode switches
   tone(BUZZER, 3700, 200);
@@ -265,15 +252,15 @@ void handleSpeedLimitWarning() {
     // Calculate warning intensity based on speed difference
     unsigned long warningInterval;
 
-    if (speedDifference <= 10) {
-      // 1-10 km/h over: slow beeping
-      warningInterval = 500;  // 1 second interval
-    } else if (speedDifference <= 20) {
-      // 11-20 km/h over: medium beeping
-      warningInterval = 300;  // 0.5 second interval
+    if (speedDifference <= 5) {
+      // 1-5 km/h over: slow beeping
+      warningInterval = 500;  // 0.5 second interval
+    } else if (speedDifference <= 15) {
+      // 6-15 km/h over: medium beeping
+      warningInterval = 250;  // 0.25 second interval
     } else {
-      // 21+ km/h over: fast beeping
-      warningInterval = 150;  // 0.25 second interval
+      // 15+ km/h over: fast beeping
+      warningInterval = 100;  // 0.1 second interval
     }
 
     // Handle beeping timing
@@ -282,7 +269,7 @@ void handleSpeedLimitWarning() {
       tone(BUZZER, 3700, 100);  // Short beep
 
       // Flash red LED briefly to indicate speed warning
-      rgb.keepDigitalRedFor(100);
+      rgb.flashRB(warningInterval);
 
       lastSpeedWarningTime = currentTime;
     }
