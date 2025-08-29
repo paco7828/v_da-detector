@@ -274,6 +274,7 @@ void handleSpeedLimitWarning() {
       delay(warningInterval / 2);
       rgb.setDigitalColor(false, false, true);
       delay(warningInterval / 2);
+      rgb.allOff();
 
       lastSpeedWarningTime = currentTime;
     }
