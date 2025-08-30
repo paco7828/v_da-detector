@@ -124,6 +124,9 @@ void loop() {
     if (!gps.hasFix()) {
       lastRedBlinkTime = millis();  // reset blink timer
       rgb.setDigitalRed(true);      // turn red on right away
+    } else {
+      // GPS has fix - restore normal green LED state
+      restoreNormalLedState();
     }
   }
 
@@ -132,8 +135,7 @@ void loop() {
     // Play signal found once
     if (!playedSignalFoundSound) {
       if (!withinProxRange) {
-        rgb.setDigitalRed(false);   // Red off to prevent both colors present
-        rgb.setDigitalGreen(true);  // Green LED ON
+        rgb.setDigitalColor(false, true, false);  // Turn green on only
       }
       signalSound(false);  // Found signal sound
       playedSignalFoundSound = true;
@@ -156,10 +158,8 @@ void loop() {
     // Handle speed limit warnings if not in proximity
     if (!withinProxRange) {
       handleSpeedLimitWarning();
-    } else if (isSpeedWarningActive) {
-      isSpeedWarningActive = false;
-      speedWarningBeepActive = false;
-      noTone(BUZZER);
+    } else {
+      stopSpeedWarnings();
     }
 
     // Handle buzzer flashing when in proximity
@@ -190,9 +190,7 @@ void loop() {
     }
 
     // Stop speed warnings when no GPS
-    isSpeedWarningActive = false;
-    speedWarningBeepActive = false;
-    noTone(BUZZER);
+    stopSpeedWarnings();
   }
 
   // Small delay to prevent watchdog issues
@@ -218,9 +216,7 @@ void handleModeButton() {
       buttonHoldProcessed = true;
 
       // Stop any active speed warnings
-      isSpeedWarningActive = false;
-      speedWarningBeepActive = false;
-      noTone(BUZZER);
+      stopSpeedWarnings();
     }
   }
 
@@ -233,9 +229,7 @@ void handleModeButton() {
       showModeIndication();
 
       // Stop any active speed warnings
-      isSpeedWarningActive = false;
-      speedWarningBeepActive = false;
-      noTone(BUZZER);
+      stopSpeedWarnings();
     }
   }
 
@@ -269,12 +263,31 @@ void showModeIndication() {
   soundEndTime = millis() + 250;
 }
 
+// Helper function to restore normal LED state
+void restoreNormalLedState() {
+  if (gps.hasFix() && !withinProxRange && !showingModeDisplay && !isSpeedWarningActive) {
+    rgb.setDigitalColor(false, true, false);  // Green on for GPS signal
+  }
+}
+
+// Stop speed warnings and restore normal LED state
+void stopSpeedWarnings() {
+  if (isSpeedWarningActive) {
+    isSpeedWarningActive = false;
+    speedWarningBeepActive = false;
+    speedWarningLedActive = false;
+    noTone(BUZZER);
+
+    // Restore normal LED state after stopping warnings
+    restoreNormalLedState();
+  }
+}
+
 // Handle speed limit warnings
 void handleSpeedLimitWarning() {
   // If no speed limit mode is set, do nothing
   if (currentSpeedMode == NONE) {
-    isSpeedWarningActive = false;
-    speedWarningBeepActive = false;
+    stopSpeedWarnings();
     return;
   }
 
@@ -343,29 +356,22 @@ void handleSpeedLimitWarning() {
 
   } else {
     // Under speed limit - stop warnings
-    if (isSpeedWarningActive) {
-      isSpeedWarningActive = false;
-      speedWarningBeepActive = false;
-      speedWarningLedActive = false;
-      noTone(BUZZER);
-    }
+    stopSpeedWarnings();
   }
 }
 
 // Function to check distance between traffipax and you
 void checkProximityToTraffipax() {
   // Adjust proximity range based on speed
-  if(currentSpeed <= 50){
+  if (currentSpeed <= 50) {
     // below or at 50km/h
-    proximityRange = 300; // meters
-  }
-  else if(currentSpeed <= 70){
+    proximityRange = 300;  // meters
+  } else if (currentSpeed <= 70) {
     // between 51 and 70km/h
-    proximityRange = 400; // meters
-  }
-  else{
+    proximityRange = 400;  // meters
+  } else {
     // above 70km/h
-    proximityRange = 500; // meters
+    proximityRange = 500;  // meters
   }
 
   bool traffipaxFound = false;
@@ -384,9 +390,7 @@ void checkProximityToTraffipax() {
         withinProxRange = true;  // Prevent repeated alerts
 
         // Stop any speed warnings when entering traffipax proximity
-        isSpeedWarningActive = false;
-        speedWarningBeepActive = false;
-        noTone(BUZZER);
+        stopSpeedWarnings();
 
         // Start by turning leds off and begin flashing
         rgb.allOff();
@@ -406,18 +410,17 @@ void checkProximityToTraffipax() {
     justLeftProxRange = true;
 
     // Stop flashing and switch back to GREEN
-    rgb.allOff();
-    rgb.setDigitalGreen(true);
+    rgb.setDigitalColor(false, true, false);
 
     // Stop any buzzer activity
     noTone(BUZZER);
 
-    // Play the exit sound - 2 second beep at 4000Hz
+    // Play the exit sound - 2 second beep at 3700Hz
     tone(BUZZER, 3700, 2000);
   } else if (!traffipaxFound && !withinProxRange) {
     // Normal operation outside proximity - ensure GREEN is on (unless speed warning is active)
-    if (!isSpeedWarningActive) {
-      rgb.setDigitalGreen(true);
+    if (!isSpeedWarningActive && gps.hasFix() && !showingModeDisplay) {
+      rgb.setDigitalColor(false, true, false);
     }
 
     // Reset the flag once we're out
@@ -432,7 +435,7 @@ void handleBuzzerFlashing() {
 
     if (currentTime - buzzerFlashTimer >= BUZZER_FLASH_INTERVAL) {
       if (buzzerFlashState) {
-        // Turn buzzer on (beep at 4000Hz for the flash duration)
+        // Turn buzzer on (beep at 3700Hz for the flash duration)
         tone(BUZZER, 3700, BUZZER_FLASH_INTERVAL - 50);  // Slightly shorter than interval
       } else {
         // Turn buzzer off
