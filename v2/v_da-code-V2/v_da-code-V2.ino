@@ -24,10 +24,6 @@ const byte BUZZER = 7;
 bool playedSignalFoundSound = false;
 bool playedNoSignalSound = false;
 
-// Variables for red LED blinking when searching
-unsigned long lastRedBlinkTime = 0;
-const unsigned long RED_BLINK_INTERVAL = 500;
-
 // Led driver
 const byte DATA_PIN = 8;
 const byte CLK_PIN = 9;
@@ -119,15 +115,6 @@ void loop() {
   // Handle mode display timeout globally
   if (showingModeDisplay && millis() >= modeDisplayEndTime) {
     showingModeDisplay = false;
-
-    // If GPS still searching, restart red blinking immediately
-    if (!gps.hasFix()) {
-      lastRedBlinkTime = millis();  // reset blink timer
-      rgb.setDigitalRed(true);      // turn red on right away
-    } else {
-      // GPS has fix - restore normal green LED state
-      restoreNormalLedState();
-    }
   }
 
   // GPS has fix
@@ -170,15 +157,9 @@ void loop() {
       playedNoSignalSound = true;
       playedSignalFoundSound = false;
     } else {
-      // Red LED blinking (unless mode display is active)
+      // Steady red LED when no GPS fix
       if (!showingModeDisplay) {
-        unsigned long currentTime = millis();
-        if (currentTime - lastRedBlinkTime >= RED_BLINK_INTERVAL) {
-          static bool redLedState = false;
-          rgb.setDigitalRed(redLedState);
-          redLedState = !redLedState;
-          lastRedBlinkTime = currentTime;
-        }
+        rgb.setDigitalColor(true, false, false);
       }
     }
 
@@ -248,19 +229,15 @@ void showModeIndication() {
   showingModeDisplay = true;
   modeDisplayEndTime = millis() + 3000;  // Show for 3 seconds
 
-  // Turn off all LEDs first to prevent color mixing
+  // Turn green LED on and play buzzer tone
   rgb.allOff();
-
-  // Green blink for all modes
-  rgb.keepDigitalGreenFor(500);  // Green blink for 0.5 second
-
-  // Reset the red blink timer to prevent immediate red LED activation
-  lastRedBlinkTime = millis() + 200;  // Delay red blinking restart by 200ms
-
-  // Play mode sound
+  delay(200);
+  rgb.setDigitalColor(false, true, false);
   tone(BUZZER, 3700, 200);
+
+  // Set timers for when to turn off LED and stop sound
   soundActive = true;
-  soundEndTime = millis() + 250;
+  soundEndTime = millis() + 200;
 }
 
 // Helper function to restore normal LED state
@@ -323,9 +300,9 @@ void handleSpeedLimitWarning() {
         speedWarningBeepActive = true;
         speedWarningBeepEndTime = currentTime + 100;
 
-        // Start red-blue LED flashing cycle
-        rgb.allOff();                             // Clear all LEDs first
-        rgb.setDigitalColor(true, false, false);  // Red first
+        // Start white LED flashing
+        rgb.allOff();                           // Clear all LEDs first
+        rgb.setDigitalColor(true, true, true);  // White (all LEDs on)
         speedWarningLedActive = true;
         speedWarningLedEndTime = currentTime + (warningInterval / 2);
 
@@ -337,9 +314,8 @@ void handleSpeedLimitWarning() {
     if (speedWarningLedActive) {
       if (currentTime >= speedWarningLedEndTime) {
         if (currentTime < lastSpeedWarningTime + warningInterval) {
-          // Switch to blue for second half
-          rgb.allOff();  // Clear all LEDs first
-          rgb.setDigitalColor(false, false, true);
+          // Turn off LED for second half (flash off)
+          rgb.allOff();
           speedWarningLedEndTime = lastSpeedWarningTime + warningInterval;
         } else {
           // End of cycle - turn off LED and prepare for next cycle
