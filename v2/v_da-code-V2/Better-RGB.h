@@ -317,4 +317,11 @@ public:
     delay(delayMs);
     allOff();
   }
+
+  void flashWhite(unsigned int delayMs = 200){
+    setDigitalColor(true, true, true);
+    delay(delayMs);
+    setDigitalColor(false, false, false);
+    delay(delayMs);
+  };
 };

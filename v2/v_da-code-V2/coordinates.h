@@ -4,7 +4,7 @@ struct Coordinate
   double lon;
 };
 
-const Coordinate coordinates[] PROGMEM = {
+constexpr Coordinate coordinates[] = {
     // Budapest
     {47.49000, 19.121843},
     {47.49789, 19.122327},

@@ -4,29 +4,29 @@
 #include "coordinates.h"
 
 // Mode switch button
-const byte MODE_SW = 0;
+constexpr byte MODE_SW = 0;
 
 // RGB Led
-const byte LED_R = 2;
-const byte LED_G = 3;
-const byte LED_B = 4;
-const bool COMMON_CATHODE = false;
+constexpr byte LED_R = 2;
+constexpr byte LED_G = 3;
+constexpr byte LED_B = 4;
+constexpr bool COMMON_CATHODE = false;
 
 // GPS
-const byte GPS_RX = 6;
-const byte GPS_TX = -1;  // not used
-const int GPS_BAUD = 9600;
+constexpr byte GPS_RX = 6;
+constexpr byte GPS_TX = -1;  // not used
+constexpr int GPS_BAUD = 9600;
 double currentLat, currentLon;
 int currentSpeed;
 
 // Buzzer
-const byte BUZZER = 7;
+constexpr byte BUZZER = 7;
 bool playedSignalFoundSound = false;
 bool playedNoSignalSound = false;
 
 // Led driver
-const byte DATA_PIN = 8;
-const byte CLK_PIN = 9;
+constexpr byte DATA_PIN = 8;
+constexpr byte CLK_PIN = 9;
 
 // Proximity range
 bool withinProxRange = false;
@@ -36,7 +36,10 @@ bool justLeftProxRange = false;
 // Variables for buzzer flashing sync
 bool buzzerFlashState = false;
 unsigned long buzzerFlashTimer = 0;
-const unsigned long BUZZER_FLASH_INTERVAL = 200;
+constexpr unsigned long BUZZER_FLASH_INTERVAL = 200;
+
+// Earth radius in meters
+constexpr double R = 6371000.0;
 
 // Speed limit mode variables
 enum SpeedMode {
@@ -54,7 +57,7 @@ int speedLimits[5] = { 0, 50, 90, 110, 130 };
 bool lastButtonState = HIGH;
 unsigned long buttonPressStartTime = 0;
 bool buttonHoldProcessed = false;
-const unsigned long BUTTON_HOLD_TIME = 1500;  // 1.5 seconds for hold-to-reset
+constexpr unsigned long BUTTON_HOLD_TIME = 1500;  // 1.5 seconds for hold-to-reset
 
 unsigned long modeDisplayEndTime = 0;
 bool showingModeDisplay = false;
@@ -354,8 +357,8 @@ void checkProximityToTraffipax() {
 
   for (int i = 0; i < sizeof(coordinates) / sizeof(coordinates[0]); i++) {
     // Access lat + lon from flash memory
-    double lat = pgm_read_float(&coordinates[i].lat);
-    double lon = pgm_read_float(&coordinates[i].lon);
+    double lat = coordinates[i].lat;
+    double lon = coordinates[i].lon;
 
     double distance = getDistance(currentLat, currentLon, lat, lon);
 
@@ -373,8 +376,8 @@ void checkProximityToTraffipax() {
         buzzerFlashTimer = millis();  // Initialize buzzer timer
       }
 
-      // Continue red-blue flashing while in proximity
-      rgb.flashRB();
+      // Continue white flashing while in proximity
+      rgb.flashWhite();
 
       break;
     }
@@ -412,7 +415,7 @@ void handleBuzzerFlashing() {
     if (currentTime - buzzerFlashTimer >= BUZZER_FLASH_INTERVAL) {
       if (buzzerFlashState) {
         // Turn buzzer on (beep at 3700Hz for the flash duration)
-        tone(BUZZER, 3700, BUZZER_FLASH_INTERVAL - 50);  // Slightly shorter than interval
+        tone(BUZZER, 3700, BUZZER_FLASH_INTERVAL);
       } else {
         // Turn buzzer off
         noTone(BUZZER);
@@ -454,9 +457,6 @@ double toRadians(double degree) {
 
 // Function to calculate distance between 2 latitude and longitude points
 double getDistance(double lat1, double lon1, double lat2, double lon2) {
-  // Earth radius in meters
-  const double R = 6371000.0;
-
   // Convert latitudes and longitudes to radians
   lat1 = toRadians(lat1);
   lat2 = toRadians(lat2);
