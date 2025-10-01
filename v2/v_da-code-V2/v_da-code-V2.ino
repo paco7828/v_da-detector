@@ -54,7 +54,7 @@ enum SpeedMode {
   LIMIT_130 = 5
 };
 SpeedMode currentSpeedMode = NONE;
-const int speedLimits[5] = { 0, 50, 70, 90, 110, 130 };
+const int speedLimits[6] = { 0, 50, 70, 90, 110, 130 };
 
 // Button handling variables
 bool lastButtonState = HIGH;
@@ -160,6 +160,9 @@ void loop() {
 
     // Handle buzzer flashing when in proximity
     handleBuzzerFlashing();
+
+    // Handle white LED flashing when in proximity
+    handleWhiteFlashing();
   } else {
     // No GPS fix - show loading animation
     if (!showingModeDisplay) {
@@ -196,6 +199,18 @@ void loop() {
   delay(1);
 }
 
+// Handle non-blocking white LED flashing
+void handleWhiteFlashing() {
+  if (withinProxRange) {
+    // White LED state follows the buzzer flash state
+    if (buzzerFlashState) {
+      rgb.setDigitalColor(true, true, true);  // White on
+    } else {
+      rgb.allOff();  // Off
+    }
+  }
+}
+
 // Handle mode button press with debouncing and hold-to-reset
 void handleModeButton() {
   bool currentButtonState = digitalRead(MODE_SW);
@@ -224,7 +239,7 @@ void handleModeButton() {
     // Only process short press if hold wasn't already processed
     if (!buttonHoldProcessed) {
       // Short press - cycle through modes
-      currentSpeedMode = (SpeedMode)((currentSpeedMode + 1) % 5);
+      currentSpeedMode = (SpeedMode)((currentSpeedMode + 1) % 6);
       showModeIndication();
 
       // Stop any active speed warnings
@@ -387,11 +402,9 @@ void checkProximityToTraffipax() {
 
         // Start by turning leds off and begin flashing
         rgb.allOff();
-        buzzerFlashTimer = millis();  // Initialize buzzer timer
+        buzzerFlashTimer = millis();                    // Initialize buzzer timer
+        rgb.startWhiteFlashing(BUZZER_FLASH_INTERVAL);  // Start non-blocking white flash
       }
-
-      // Continue white flashing while in proximity
-      rgb.flashWhite();
 
       break;
     }
@@ -403,6 +416,7 @@ void checkProximityToTraffipax() {
     justLeftProxRange = true;
 
     // Stop flashing and switch back to GREEN
+    rgb.stopWhiteFlashing();  // Stop white flashing
     rgb.setDigitalColor(false, true, false);
 
     // Stop any buzzer activity
@@ -428,11 +442,13 @@ void handleBuzzerFlashing() {
 
     if (currentTime - buzzerFlashTimer >= BUZZER_FLASH_INTERVAL) {
       if (buzzerFlashState) {
-        // Turn buzzer on (beep at 3700Hz for the flash duration)
+        // Turn buzzer on and white LED on
         tone(BUZZER, 3700, BUZZER_FLASH_INTERVAL);
+        rgb.setDigitalColor(true, true, true);  // White on
       } else {
-        // Turn buzzer off
+        // Turn buzzer off and white LED off
         noTone(BUZZER);
+        rgb.allOff();  // Off
       }
 
       buzzerFlashState = !buzzerFlashState;

@@ -1,7 +1,6 @@
 #pragma once
 
-class BetterRGB
-{
+class BetterRGB {
 private:
   // Constants
   byte RED;
@@ -19,9 +18,14 @@ private:
   unsigned long analogBlueOnUntil = 0;
   unsigned long analogColorOnUntil = 0;
 
+  // White flashing variables
+  bool whiteFlashActive = false;
+  bool whiteFlashState = false;
+  unsigned long whiteFlashTimer = 0;
+  unsigned long whiteFlashInterval = 200;
+
 public:
-  void begin(byte red, byte green, byte blue, bool commonCathode)
-  {
+  void begin(byte red, byte green, byte blue, bool commonCathode) {
     this->RED = red;
     this->GREEN = green;
     this->BLUE = blue;
@@ -37,33 +41,27 @@ public:
 
   // ---------------------------------------------- Simple digital functions ----------------------------------------------
 
-  void setDigitalRed(bool isOn)
-  {
+  void setDigitalRed(bool isOn) {
     digitalWrite(this->RED, COMMON_CATHODE ? isOn : !isOn);
   }
 
-  void setDigitalGreen(bool isOn)
-  {
+  void setDigitalGreen(bool isOn) {
     digitalWrite(this->GREEN, COMMON_CATHODE ? isOn : !isOn);
   }
 
-  void setDigitalBlue(bool isOn)
-  {
+  void setDigitalBlue(bool isOn) {
     digitalWrite(this->BLUE, COMMON_CATHODE ? isOn : !isOn);
   }
 
-  void allOn()
-  {
+  void allOn() {
     setDigitalColor(true, true, true);
   }
 
-  void allOff()
-  {
+  void allOff() {
     setDigitalColor(false, false, false);
   }
 
-  void setDigitalColor(bool red, bool green, bool blue)
-  {
+  void setDigitalColor(bool red, bool green, bool blue) {
     setDigitalRed(red);
     setDigitalGreen(green);
     setDigitalBlue(blue);
@@ -71,8 +69,7 @@ public:
 
   // ---------------------------------------------- Simple analog functions ----------------------------------------------
 
-  void setAnalogColor(int red, int green, int blue)
-  {
+  void setAnalogColor(int red, int green, int blue) {
     // Add bounds checking
     red = constrain(red, 0, 255);
     green = constrain(green, 0, 255);
@@ -83,76 +80,96 @@ public:
     analogWrite(this->BLUE, COMMON_CATHODE ? blue : 255 - blue);
   }
 
-  void setAnalogRed(int redValue)
-  {
+  void setAnalogRed(int redValue) {
     redValue = constrain(redValue, 0, 255);
     analogWrite(this->RED, COMMON_CATHODE ? redValue : 255 - redValue);
   }
 
-  void setAnalogGreen(int greenValue)
-  {
+  void setAnalogGreen(int greenValue) {
     greenValue = constrain(greenValue, 0, 255);
     analogWrite(this->GREEN, COMMON_CATHODE ? greenValue : 255 - greenValue);
   }
 
-  void setAnalogBlue(int blueValue)
-  {
+  void setAnalogBlue(int blueValue) {
     blueValue = constrain(blueValue, 0, 255);
     analogWrite(this->BLUE, COMMON_CATHODE ? blueValue : 255 - blueValue);
   }
 
+  // ---------------------------------------------- White flashing functions ----------------------------------------------
+
+  void startWhiteFlashing(unsigned long intervalMs = 200) {
+    whiteFlashActive = true;
+    whiteFlashInterval = intervalMs;
+    whiteFlashTimer = millis();
+    whiteFlashState = false;
+    allOff();
+  }
+
+  void stopWhiteFlashing() {
+    whiteFlashActive = false;
+    allOff();
+  }
+
+  bool isWhiteFlashing() {
+    return whiteFlashActive;
+  }
+
   // ---------------------------------------------- Time based functions ----------------------------------------------
 
-  void update()
-  {
+  void update() {
     unsigned long currentTime = millis();
 
+    // Handle white flashing if active
+    if (whiteFlashActive) {
+      if (currentTime - whiteFlashTimer >= whiteFlashInterval) {
+        if (whiteFlashState) {
+          setDigitalColor(true, true, true);  // White on
+        } else {
+          allOff();  // Off
+        }
+        whiteFlashState = !whiteFlashState;
+        whiteFlashTimer = currentTime;
+      }
+    }
+
     // ---------------- Digital resets ----------------
-    if (digitalRedOnUntil > 0 && currentTime >= digitalRedOnUntil)
-    {
+    if (digitalRedOnUntil > 0 && currentTime >= digitalRedOnUntil) {
       setDigitalRed(false);
       digitalRedOnUntil = 0;
     }
 
-    if (digitalGreenOnUntil > 0 && currentTime >= digitalGreenOnUntil)
-    {
+    if (digitalGreenOnUntil > 0 && currentTime >= digitalGreenOnUntil) {
       setDigitalGreen(false);
       digitalGreenOnUntil = 0;
     }
 
-    if (digitalBlueOnUntil > 0 && currentTime >= digitalBlueOnUntil)
-    {
+    if (digitalBlueOnUntil > 0 && currentTime >= digitalBlueOnUntil) {
       setDigitalBlue(false);
       digitalBlueOnUntil = 0;
     }
 
-    if (digitalColorOnUntil > 0 && currentTime >= digitalColorOnUntil)
-    {
+    if (digitalColorOnUntil > 0 && currentTime >= digitalColorOnUntil) {
       setDigitalColor(false, false, false);
       digitalColorOnUntil = 0;
     }
 
     // ---------------- Analog resets ----------------
-    if (analogColorOnUntil > 0 && currentTime >= analogColorOnUntil)
-    {
+    if (analogColorOnUntil > 0 && currentTime >= analogColorOnUntil) {
       setAnalogColor(0, 0, 0);
       analogColorOnUntil = 0;
     }
 
-    if (analogRedOnUntil > 0 && currentTime >= analogRedOnUntil)
-    {
+    if (analogRedOnUntil > 0 && currentTime >= analogRedOnUntil) {
       setAnalogRed(0);
       analogRedOnUntil = 0;
     }
 
-    if (analogGreenOnUntil > 0 && currentTime >= analogGreenOnUntil)
-    {
+    if (analogGreenOnUntil > 0 && currentTime >= analogGreenOnUntil) {
       setAnalogGreen(0);
       analogGreenOnUntil = 0;
     }
 
-    if (analogBlueOnUntil > 0 && currentTime >= analogBlueOnUntil)
-    {
+    if (analogBlueOnUntil > 0 && currentTime >= analogBlueOnUntil) {
       setAnalogBlue(0);
       analogBlueOnUntil = 0;
     }
@@ -160,62 +177,52 @@ public:
 
   // ---------------------------------------------- Time based digital functions ----------------------------------------------
 
-  void keepDigitalRedFor(unsigned long ms)
-  {
+  void keepDigitalRedFor(unsigned long ms) {
     setDigitalRed(true);
     digitalRedOnUntil = millis() + ms;
   }
 
-  void keepDigitalGreenFor(unsigned long ms)
-  {
+  void keepDigitalGreenFor(unsigned long ms) {
     setDigitalGreen(true);
     digitalGreenOnUntil = millis() + ms;
   }
 
-  void keepDigitalBlueFor(unsigned long ms)
-  {
+  void keepDigitalBlueFor(unsigned long ms) {
     setDigitalBlue(true);
     digitalBlueOnUntil = millis() + ms;
   }
 
-  void keepDigitalColorFor(bool red, bool green, bool blue, unsigned long ms)
-  {
+  void keepDigitalColorFor(bool red, bool green, bool blue, unsigned long ms) {
     setDigitalColor(red, green, blue);
     digitalColorOnUntil = millis() + ms;
   }
 
   // ---------------------------------------------- Time based analog functions ----------------------------------------------
 
-  void keepAnalogRedFor(int v, unsigned long ms)
-  {
+  void keepAnalogRedFor(int v, unsigned long ms) {
     setAnalogRed(v);
     analogRedOnUntil = millis() + ms;
   }
 
-  void keepAnalogGreenFor(int v, unsigned long ms)
-  {
+  void keepAnalogGreenFor(int v, unsigned long ms) {
     setAnalogGreen(v);
     analogGreenOnUntil = millis() + ms;
   }
 
-  void keepAnalogBlueFor(int v, unsigned long ms)
-  {
+  void keepAnalogBlueFor(int v, unsigned long ms) {
     setAnalogBlue(v);
     analogBlueOnUntil = millis() + ms;
   }
 
-  void keepAnalogColorFor(int red, int green, int blue, unsigned long ms)
-  {
+  void keepAnalogColorFor(int red, int green, int blue, unsigned long ms) {
     setAnalogColor(red, green, blue);
     analogColorOnUntil = millis() + ms;
   }
 
   // ---------------------------------------------- Fading functions ----------------------------------------------
 
-  void fadeFromRedToBlue(unsigned int steps = 50, unsigned int delayMs = 20)
-  {
-    for (int i = 0; i <= steps; i++)
-    {
+  void fadeFromRedToBlue(unsigned int steps = 50, unsigned int delayMs = 20) {
+    for (int i = 0; i <= steps; i++) {
       int redValue = 255 - (255 * i / steps);
       int blueValue = 255 * i / steps;
       setAnalogColor(redValue, 0, blueValue);
@@ -223,10 +230,8 @@ public:
     }
   }
 
-  void fadeFromRedToGreen(unsigned int steps = 50, unsigned int delayMs = 20)
-  {
-    for (int i = 0; i <= steps; i++)
-    {
+  void fadeFromRedToGreen(unsigned int steps = 50, unsigned int delayMs = 20) {
+    for (int i = 0; i <= steps; i++) {
       int redValue = 255 - (255 * i / steps);
       int greenValue = 255 * i / steps;
       setAnalogColor(redValue, greenValue, 0);
@@ -234,10 +239,8 @@ public:
     }
   }
 
-  void fadeFromGreenToRed(unsigned int steps = 50, unsigned int delayMs = 20)
-  {
-    for (int i = 0; i <= steps; i++)
-    {
+  void fadeFromGreenToRed(unsigned int steps = 50, unsigned int delayMs = 20) {
+    for (int i = 0; i <= steps; i++) {
       int greenValue = 255 - (255 * i / steps);
       int redValue = 255 * i / steps;
       setAnalogColor(redValue, greenValue, 0);
@@ -245,10 +248,8 @@ public:
     }
   }
 
-  void fadeFromGreenToBlue(unsigned int steps = 50, unsigned int delayMs = 20)
-  {
-    for (int i = 0; i <= steps; i++)
-    {
+  void fadeFromGreenToBlue(unsigned int steps = 50, unsigned int delayMs = 20) {
+    for (int i = 0; i <= steps; i++) {
       int greenValue = 255 - (255 * i / steps);
       int blueValue = 255 * i / steps;
       setAnalogColor(0, greenValue, blueValue);
@@ -256,10 +257,8 @@ public:
     }
   }
 
-  void fadeFromBlueToRed(unsigned int steps = 50, unsigned int delayMs = 20)
-  {
-    for (int i = 0; i <= steps; i++)
-    {
+  void fadeFromBlueToRed(unsigned int steps = 50, unsigned int delayMs = 20) {
+    for (int i = 0; i <= steps; i++) {
       int blueValue = 255 - (255 * i / steps);
       int redValue = 255 * i / steps;
       setAnalogColor(redValue, 0, blueValue);
@@ -267,10 +266,8 @@ public:
     }
   }
 
-  void fadeFromBlueToGreen(unsigned int steps = 50, unsigned int delayMs = 20)
-  {
-    for (int i = 0; i <= steps; i++)
-    {
+  void fadeFromBlueToGreen(unsigned int steps = 50, unsigned int delayMs = 20) {
+    for (int i = 0; i <= steps; i++) {
       int blueValue = 255 - (255 * i / steps);
       int greenValue = 255 * i / steps;
       setAnalogColor(0, greenValue, blueValue);
@@ -280,45 +277,41 @@ public:
 
   // ---------------------------------------------- Flashing functions ----------------------------------------------
 
-  void flashRGB(unsigned int delayMs = 200)
-  {
-    setDigitalColor(true, false, false); // Red
+  void flashRGB(unsigned int delayMs = 200) {
+    setDigitalColor(true, false, false);  // Red
     delay(delayMs);
-    setDigitalColor(false, true, false); // Green
+    setDigitalColor(false, true, false);  // Green
     delay(delayMs);
-    setDigitalColor(false, false, true); // Blue
-    delay(delayMs);
-    allOff();
-  }
-
-  void flashRG(unsigned int delayMs = 200)
-  {
-    setDigitalColor(true, false, false); // Red
-    delay(delayMs);
-    setDigitalColor(false, true, false); // Green
+    setDigitalColor(false, false, true);  // Blue
     delay(delayMs);
     allOff();
   }
 
-  void flashRB(unsigned int delayMs = 200)
-  {
-    setDigitalColor(true, false, false); // Red
+  void flashRG(unsigned int delayMs = 200) {
+    setDigitalColor(true, false, false);  // Red
     delay(delayMs);
-    setDigitalColor(false, false, true); // Blue
-    delay(delayMs);
-    allOff();
-  }
-
-  void flashGB(unsigned int delayMs = 200)
-  {
-    setDigitalColor(false, true, false); // Green
-    delay(delayMs);
-    setDigitalColor(false, false, true); // Blue
+    setDigitalColor(false, true, false);  // Green
     delay(delayMs);
     allOff();
   }
 
-  void flashWhite(unsigned int delayMs = 200){
+  void flashRB(unsigned int delayMs = 200) {
+    setDigitalColor(true, false, false);  // Red
+    delay(delayMs);
+    setDigitalColor(false, false, true);  // Blue
+    delay(delayMs);
+    allOff();
+  }
+
+  void flashGB(unsigned int delayMs = 200) {
+    setDigitalColor(false, true, false);  // Green
+    delay(delayMs);
+    setDigitalColor(false, false, true);  // Blue
+    delay(delayMs);
+    allOff();
+  }
+
+  void flashWhite(unsigned int delayMs = 200) {
     setDigitalColor(true, true, true);
     delay(delayMs);
     setDigitalColor(false, false, false);
