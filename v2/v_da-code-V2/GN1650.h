@@ -40,14 +40,14 @@ private:
   };
 
   // Segment bit positions
-  static const uint8_t SEG_A = 0x01;  // bit 0
-  static const uint8_t SEG_B = 0x02;  // bit 1
-  static const uint8_t SEG_C = 0x04;  // bit 2
-  static const uint8_t SEG_D = 0x08;  // bit 3
-  static const uint8_t SEG_E = 0x10;  // bit 4
-  static const uint8_t SEG_F = 0x20;  // bit 5
-  static const uint8_t SEG_G = 0x40;  // bit 6
-  static const uint8_t SEG_DP = 0x80; // bit 7
+  static const uint8_t SEG_A = 0x01;   // bit 0
+  static const uint8_t SEG_B = 0x02;   // bit 1
+  static const uint8_t SEG_C = 0x04;   // bit 2
+  static const uint8_t SEG_D = 0x08;   // bit 3
+  static const uint8_t SEG_E = 0x10;   // bit 4
+  static const uint8_t SEG_F = 0x20;   // bit 5
+  static const uint8_t SEG_G = 0x40;   // bit 6
+  static const uint8_t SEG_DP = 0x80;  // bit 7
 
   void startCondition() {
     digitalWrite(CLK_PIN, HIGH);
@@ -151,7 +151,7 @@ public:
 
     // Step 2: Enable display with brightness
     setBrightness(brightness);
-    
+
     initialized = true;
   }
 
@@ -206,16 +206,16 @@ public:
 
     // Loading animation sequence: d1a, d1f, d1e, d1d, d2d, d3d, d3c, d3b, d3a, d2a
     const uint8_t sequence[][3] = {
-      {SEG_A, 0x00, 0x00},     // d1a
-      {SEG_F, 0x00, 0x00},     // d1f
-      {SEG_E, 0x00, 0x00},     // d1e
-      {SEG_D, 0x00, 0x00},     // d1d
-      {0x00, SEG_D, 0x00},     // d2d
-      {0x00, 0x00, SEG_D},     // d3d
-      {0x00, 0x00, SEG_C},     // d3c
-      {0x00, 0x00, SEG_B},     // d3b
-      {0x00, 0x00, SEG_A},     // d3a
-      {0x00, SEG_A, 0x00}      // d2a
+      { SEG_A, 0x00, 0x00 },  // d1a
+      { SEG_F, 0x00, 0x00 },  // d1f
+      { SEG_E, 0x00, 0x00 },  // d1e
+      { SEG_D, 0x00, 0x00 },  // d1d
+      { 0x00, SEG_D, 0x00 },  // d2d
+      { 0x00, 0x00, SEG_D },  // d3d
+      { 0x00, 0x00, SEG_C },  // d3c
+      { 0x00, 0x00, SEG_B },  // d3b
+      { 0x00, 0x00, SEG_A },  // d3a
+      { 0x00, SEG_A, 0x00 }   // d2a
     };
 
     for (int i = 0; i < 10; i++) {
