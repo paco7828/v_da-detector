@@ -4,29 +4,28 @@
 #include "coordinates.h"
 
 // Mode switch button
-constexpr byte MODE_SW = 0;
+constexpr uint8_t MODE_SW = 0;
 
 // RGB Led
-constexpr byte LED_R = 2;
-constexpr byte LED_G = 3;
-constexpr byte LED_B = 4;
-constexpr bool COMMON_CATHODE = false;
+constexpr uint8_t LED_R = 2;
+constexpr uint8_t LED_G = 3;
+constexpr uint8_t LED_B = 4;
+constexpr bool LED_COMMON_CATHODE = false;
 
 // GPS
-constexpr byte GPS_RX = 6;
-constexpr byte GPS_TX = -1;  // not used
+constexpr uint8_t GPS_RX = 6;
+constexpr uint8_t GPS_TX = -1;
 constexpr int GPS_BAUD = 9600;
 double currentLat, currentLon;
 int currentSpeed;
 
 // Buzzer
-constexpr byte BUZZER = 7;
-bool playedSignalFoundSound = false;
-bool playedNoSignalSound = false;
+constexpr uint8_t BUZZER = 7;
+bool hadGpsFix = false;
 
 // Led driver
-constexpr byte DATA_PIN = 8;
-constexpr byte CLK_PIN = 9;
+constexpr uint8_t DATA_PIN = 8;
+constexpr uint8_t CLK_PIN = 9;
 
 // Proximity range
 bool withinProxRange = false;
@@ -38,6 +37,10 @@ bool buzzerFlashState = false;
 unsigned long buzzerFlashTimer = 0;
 constexpr unsigned long BUZZER_FLASH_INTERVAL = 200;
 
+// Loading animation timer
+unsigned long lastLoadingUpdate = 0;
+constexpr unsigned long LOADING_INTERVAL = 100;
+
 // Earth radius in meters
 constexpr double R = 6371000.0;
 
@@ -45,13 +48,13 @@ constexpr double R = 6371000.0;
 enum SpeedMode {
   NONE = 0,
   LIMIT_50 = 1,
-  LIMIT_90 = 2,
-  LIMIT_110 = 3,
-  LIMIT_130 = 4
+  LIMIT_70 = 2,
+  LIMIT_90 = 3,
+  LIMIT_110 = 4,
+  LIMIT_130 = 5
 };
-
 SpeedMode currentSpeedMode = NONE;
-int speedLimits[5] = { 0, 50, 90, 110, 130 };
+const int speedLimits[5] = { 0, 50, 70, 90, 110, 130 };
 
 // Button handling variables
 bool lastButtonState = HIGH;
@@ -87,18 +90,22 @@ void setup() {
   gps.begin(GPS_RX, GPS_TX, GPS_BAUD);
 
   // Initialize RGB with pins and common cathode configuration
-  rgb.begin(LED_R, LED_G, LED_B, COMMON_CATHODE);
+  rgb.begin(LED_R, LED_G, LED_B, LED_COMMON_CATHODE);
   rgb.allOff();
 
   // Start GN1650
-  ledDriver.begin(DATA_PIN, CLK_PIN);
+  ledDriver.begin(DATA_PIN, CLK_PIN, 8);
 
-  // Set brightness and turn display on
-  ledDriver.setBrightness(7);
-  ledDriver.displayOn();
+  // Perform startup segment test
+  ledDriver.testSegments(80);
+
+  delay(300);
 
   // Play boot sound
   bootUpSound();
+
+  // Initialize loading animation timer
+  lastLoadingUpdate = millis();
 }
 
 void loop() {
@@ -122,14 +129,13 @@ void loop() {
 
   // GPS has fix
   if (gps.hasFix()) {
-    // Play signal found once
-    if (!playedSignalFoundSound) {
+    // Play signal found sound if this is first fix or recovery from lost fix
+    if (!hadGpsFix) {
       if (!withinProxRange) {
         rgb.setDigitalColor(false, true, false);  // Turn green on only
       }
       signalSound(false);  // Found signal sound
-      playedSignalFoundSound = true;
-      playedNoSignalSound = false;
+      hadGpsFix = true;
     }
 
     // Get current GPS data
@@ -155,15 +161,24 @@ void loop() {
     // Handle buzzer flashing when in proximity
     handleBuzzerFlashing();
   } else {
-    if (!playedNoSignalSound) {
-      signalSound(true);  // "no signal" sound once
-      playedNoSignalSound = true;
-      playedSignalFoundSound = false;
-    } else {
-      // Steady red LED when no GPS fix
-      if (!showingModeDisplay) {
-        rgb.setDigitalColor(true, false, false);
+    // No GPS fix - show loading animation
+    if (!showingModeDisplay) {
+      // Play loading animation continuously
+      if (millis() - lastLoadingUpdate >= LOADING_INTERVAL) {
+        ledDriver.loading(LOADING_INTERVAL);
+        lastLoadingUpdate = millis();
       }
+    }
+
+    // Play signal lost sound if we previously had a fix
+    if (hadGpsFix) {
+      signalSound(true);  // "no signal" sound
+      hadGpsFix = false;
+    }
+
+    // Steady red LED when no GPS fix (unless in mode display)
+    if (!showingModeDisplay) {
+      rgb.setDigitalColor(true, false, false);
     }
 
     // Reset state when no GPS fix but still in proximity range
@@ -177,8 +192,8 @@ void loop() {
     stopSpeedWarnings();
   }
 
-  // Small delay to prevent watchdog issues
-  delay(10);
+  // Minimal delay for responsive updates
+  delay(1);
 }
 
 // Handle mode button press with debouncing and hold-to-reset
@@ -263,7 +278,6 @@ void stopSpeedWarnings() {
   }
 }
 
-// Handle speed limit warnings
 void handleSpeedLimitWarning() {
   // If no speed limit mode is set, do nothing
   if (currentSpeedMode == NONE) {
