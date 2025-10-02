@@ -15,7 +15,6 @@ constexpr bool LED_COMMON_CATHODE = false;
 // GPS
 constexpr uint8_t GPS_RX = 6;
 constexpr uint8_t GPS_TX = 10;
-constexpr int GPS_BAUD = 9600;
 double currentLat, currentLon;
 int currentSpeed;
 
@@ -86,7 +85,7 @@ void setup() {
   pinMode(MODE_SW, INPUT_PULLUP);
 
   // Start GPS
-  gps.begin(GPS_RX, GPS_TX, GPS_BAUD);
+  gps.begin(GPS_RX, GPS_TX);
 
   // Initialize RGB with pins and common cathode configuration
   rgb.begin(LED_R, LED_G, LED_B, LED_COMMON_CATHODE);
