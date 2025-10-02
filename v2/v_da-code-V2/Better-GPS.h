@@ -200,6 +200,16 @@ public:
 
   void begin(byte gpsRx, byte gpsTx = -1, int gpsBaud = 9600) {
     gpsSerial.begin(gpsBaud, SERIAL_8N1, gpsRx, gpsTx);
+
+    delay(100); // Delay for GPS to initialize
+
+    // Position update rate - 10Hz (NMEA sentence outputs' rate)
+    gpsSerial.println("$PMTK220,100*2F");
+    delay(100);
+
+    // Position fix rate - 10Hz  (Calculation of GPS position from satellite data rate)
+    gpsSerial.println("$PMTK300,100,0,0,0,0*2C");
+    delay(100);
   }
 
   void update() {
