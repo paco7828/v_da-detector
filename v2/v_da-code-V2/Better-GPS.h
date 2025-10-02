@@ -216,7 +216,7 @@ public:
     }
     delay(100);
 
-    // Optional: Save configuration to non-volatile memory
+    // Save configuration to non-volatile memory
     byte ubxSave[] = {
       0xB5, 0x62, 0x06, 0x09, 0x0D, 0x00,
       0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
