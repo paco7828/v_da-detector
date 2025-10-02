@@ -201,14 +201,32 @@ public:
   void begin(byte gpsRx, byte gpsTx = -1, int gpsBaud = 9600) {
     gpsSerial.begin(gpsBaud, SERIAL_8N1, gpsRx, gpsTx);
 
-    delay(100); // Delay for GPS to initialize
-
-    // Position update rate - 10Hz (NMEA sentence outputs' rate)
-    gpsSerial.println("$PMTK220,100*2F");
     delay(100);
 
-    // Position fix rate - 10Hz  (Calculation of GPS position from satellite data rate)
-    gpsSerial.println("$PMTK300,100,0,0,0,0*2C");
+    // UBX binary commands for 10Hz configuration
+    // CFG-RATE (0x06 0x08) - Navigation/Measurement Rate Settings
+    byte ubxRate[] = {
+      0xB5, 0x62, 0x06, 0x08, 0x06, 0x00,
+      0x64, 0x00, 0x01, 0x00, 0x01, 0x00,
+      0x7A, 0x12
+    };
+
+    for (int i = 0; i < sizeof(ubxRate); i++) {
+      gpsSerial.write(ubxRate[i]);
+    }
+    delay(100);
+
+    // Optional: Save configuration to non-volatile memory
+    byte ubxSave[] = {
+      0xB5, 0x62, 0x06, 0x09, 0x0D, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x17, 0x31, 0xBF
+    };
+
+    for (int i = 0; i < sizeof(ubxSave); i++) {
+      gpsSerial.write(ubxSave[i]);
+    }
     delay(100);
   }
 
@@ -222,7 +240,7 @@ public:
   }
 
   bool hasFix() {
-    return gps.location.isValid() && gps.date.isValid() && gps.time.isValid();
+    return gps.location.isValid();
   }
 
   double getLatitude() {
