@@ -198,121 +198,8 @@ public:
     timeCache.lastUpdate = 0;
   }
 
-  void begin(byte gpsRx, byte gpsTx = -1, int gpsBaud = 38400) {
-    // Try multiple baud rates for compatibility
-    int baudRates[] = { 38400, 9600, 57600, 115200 };
-    bool foundBaud = false;
-    int detectedBaud = 9600;  // Default fallback
-
-    for (int i = 0; i < 4; i++) {
-      gpsSerial.begin(baudRates[i], SERIAL_8N1, gpsRx, gpsTx);
-      delay(100);
-
-      // Clear any garbage in buffer
-      while (gpsSerial.available()) gpsSerial.read();
-
-      // Send a UBX poll message to check if GPS responds
-      byte pollMsg[] = { 0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01, 0x02, 0x01, 0x0E, 0x47 };
-      for (int j = 0; j < sizeof(pollMsg); j++) {
-        gpsSerial.write(pollMsg[j]);
-      }
-      gpsSerial.flush();
-
-      // Check for UBX response (ACK/NAK)
-      unsigned long startTime = millis();
-      while (millis() - startTime < 300) {
-        if (gpsSerial.available() >= 10) {  // UBX responses are at least 10 bytes
-          // Check if it starts with UBX header (0xB5, 0x62)
-          byte header[2];
-          header[0] = gpsSerial.read();
-          if (header[0] == 0xB5 && gpsSerial.available() >= 1) {
-            header[1] = gpsSerial.read();
-            if (header[1] == 0x62) {
-              foundBaud = true;
-              detectedBaud = baudRates[i];
-              break;
-            }
-          }
-        }
-      }
-
-      if (foundBaud) {
-        break;
-      } else {
-        gpsSerial.end();
-      }
-    }
-
-    if (!foundBaud) {
-      // Fall back to 9600
-      detectedBaud = 9600;
-      gpsSerial.begin(9600, SERIAL_8N1, gpsRx, gpsTx);
-    }
-
-    delay(200);
-
-    // Configure the GPS at 38400 baud
-    if (detectedBaud != 38400) {
-      byte ubxBaud38400[] = {
-        0xB5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00,
-        0xD0, 0x08, 0x00, 0x00, 0x00, 0x96, 0x00, 0x00, 0x07, 0x00,
-        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x93, 0x90
-      };
-
-      for (int i = 0; i < sizeof(ubxBaud38400); i++) {
-        gpsSerial.write(ubxBaud38400[i]);
-      }
-      delay(200);
-    }
-
-    // Set 10Hz rate
-    byte ubxRate[] = {
-      0xB5, 0x62, 0x06, 0x08, 0x06, 0x00,
-      0x64, 0x00, 0x01, 0x00, 0x01, 0x00,
-      0x7A, 0x12
-    };
-
-    for (int i = 0; i < sizeof(ubxRate); i++) {
-      gpsSerial.write(ubxRate[i]);
-    }
-    delay(200);
-
-    // Disable GPS smoothing
-    byte ubxNoSmooth[] = {
-      0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x00, 0x03,
-      0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x05, 0x00,
-      0xFA, 0x00, 0xFA, 0x00, 0x64, 0x00, 0x2C, 0x01, 0x00, 0x3C,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x83, 0x0A
-    };
-
-    for (int i = 0; i < sizeof(ubxNoSmooth); i++) {
-      gpsSerial.write(ubxNoSmooth[i]);
-    }
-    delay(200);
-
-    // Save configuration
-    byte ubxSave[] = {
-      0xB5, 0x62, 0x06, 0x09, 0x0D, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x17, 0x31, 0xBF
-    };
-
-    for (int i = 0; i < sizeof(ubxSave); i++) {
-      gpsSerial.write(ubxSave[i]);
-    }
-    delay(200);
-
-    // If we changed baud rate, restart serial at 38400
-    if (detectedBaud != 38400) {
-      gpsSerial.end();
-      delay(100);
-      gpsSerial.begin(38400, SERIAL_8N1, gpsRx, gpsTx);
-      Serial.println("GPS now running at 38400 baud, 10Hz");
-    }
-
-    delay(500);  // Allow GPS to stabilize
+  void begin(byte gpsRx, byte gpsTx = -1, int gpsBaud = 9600) {
+    gpsSerial.begin(gpsBaud, SERIAL_8N1, gpsRx, gpsTx);
   }
 
   void update() {
@@ -324,8 +211,32 @@ public:
     }
   }
 
+  // FIXED: More lenient hasFix() - only requires location to be valid and recent
   bool hasFix() {
-    return gps.location.isValid();
+    return gps.location.isValid() && gps.location.age() < 2000;
+  }
+
+  // Add debug method to check GPS state
+  void printDebug() {
+    Serial.print("Chars processed: ");
+    Serial.println(gps.charsProcessed());
+    Serial.print("Sentences with fix: ");
+    Serial.println(gps.sentencesWithFix());
+    Serial.print("Failed checksum: ");
+    Serial.println(gps.failedChecksum());
+    Serial.print("Passed checksum: ");
+    Serial.println(gps.passedChecksum());
+    Serial.print("Satellites: ");
+    Serial.println(gps.satellites.value());
+    Serial.print("Location valid: ");
+    Serial.println(gps.location.isValid() ? "YES" : "NO");
+    Serial.print("Location age: ");
+    Serial.println(gps.location.age());
+    Serial.print("Date valid: ");
+    Serial.println(gps.date.isValid() ? "YES" : "NO");
+    Serial.print("Time valid: ");
+    Serial.println(gps.time.isValid() ? "YES" : "NO");
+    Serial.println();
   }
 
   double getLatitude() {

@@ -14,7 +14,8 @@ constexpr bool LED_COMMON_CATHODE = false;
 
 // GPS
 constexpr uint8_t GPS_RX = 6;
-constexpr uint8_t GPS_TX = 10;
+constexpr uint8_t GPS_TX = -1;
+constexpr int GPS_BAUD = 9600;
 double currentLat, currentLon;
 int currentSpeed;
 
@@ -36,7 +37,8 @@ bool buzzerFlashState = false;
 unsigned long buzzerFlashTimer = 0;
 constexpr unsigned long BUZZER_FLASH_INTERVAL = 200;
 
-// Loading animation
+// Loading animation timer
+unsigned long lastLoadingUpdate = 0;
 constexpr unsigned long LOADING_INTERVAL = 100;
 
 // Earth radius in meters
@@ -51,7 +53,7 @@ enum SpeedMode {
   LIMIT_110 = 4,
   LIMIT_130 = 5
 };
-SpeedMode currentSpeedMode = NONE;
+SpeedMode currentSpeedMode = LIMIT_50;
 const int speedLimits[6] = { 0, 50, 70, 90, 110, 130 };
 
 // Button handling variables
@@ -85,7 +87,7 @@ void setup() {
   pinMode(MODE_SW, INPUT_PULLUP);
 
   // Start GPS
-  gps.begin(GPS_RX, GPS_TX);
+  gps.begin(GPS_RX, GPS_TX, GPS_BAUD);
 
   // Initialize RGB with pins and common cathode configuration
   rgb.begin(LED_R, LED_G, LED_B, LED_COMMON_CATHODE);
@@ -101,6 +103,9 @@ void setup() {
 
   // Play boot sound
   bootUpSound();
+
+  // Initialize loading animation timer
+  lastLoadingUpdate = millis();
 }
 
 void loop() {
@@ -163,29 +168,32 @@ void loop() {
     if (!showingModeDisplay) {
       // Play loading animation continuously
       ledDriver.loading(LOADING_INTERVAL);
-
-      // Play signal lost sound if we previously had a fix
-      if (hadGpsFix) {
-        signalSound(true);  // "no signal" sound
-        hadGpsFix = false;
-      }
-
-      // Steady red LED when no GPS fix (unless in mode display)
-      if (!showingModeDisplay) {
-        rgb.setDigitalColor(true, false, false);
-      }
-
-      // Reset state when no GPS fix but still in proximity range
-      if (withinProxRange) {
-        withinProxRange = false;
-        noTone(BUZZER);
-        rgb.allOff();
-      }
-
-      // Stop speed warnings when no GPS
-      stopSpeedWarnings();
     }
+
+    // Play signal lost sound if we previously had a fix
+    if (hadGpsFix) {
+      signalSound(true);  // "no signal" sound
+      hadGpsFix = false;
+    }
+
+    // Steady red LED when no GPS fix (unless in mode display)
+    if (!showingModeDisplay) {
+      rgb.setDigitalColor(true, false, false);
+    }
+
+    // Reset state when no GPS fix but still in proximity range
+    if (withinProxRange) {
+      withinProxRange = false;
+      noTone(BUZZER);
+      rgb.allOff();
+    }
+
+    // Stop speed warnings when no GPS
+    stopSpeedWarnings();
   }
+
+  // Minimal delay for responsive updates
+  delay(1);
 }
 
 // Handle non-blocking white LED flashing
