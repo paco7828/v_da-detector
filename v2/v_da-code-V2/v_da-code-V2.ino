@@ -32,10 +32,21 @@ bool withinProxRange = false;
 int proximityRange = 300;  // meters
 bool justLeftProxRange = false;
 
-// Variables for buzzer flashing sync
-bool buzzerFlashState = false;
-unsigned long buzzerFlashTimer = 0;
-constexpr unsigned long BUZZER_FLASH_INTERVAL = 200;
+// Triple-beep state machine for proximity alert
+enum ProxBeepPhase {
+  PROX_BEEP1_ON,
+  PROX_BEEP1_OFF,
+  PROX_BEEP2_ON,
+  PROX_BEEP2_OFF,
+  PROX_BEEP3_ON,
+  PROX_WAITING
+};
+ProxBeepPhase proxBeepPhase = PROX_BEEP1_ON;
+unsigned long proxBeepTimer = 0;
+
+constexpr unsigned long PROX_BEEP_DURATION = 100;  // ms per beep
+constexpr unsigned long PROX_BEEP_GAP = 100;       // ms gap between beeps
+constexpr unsigned long PROX_BEEP_WAIT = 8000;    // ms wait between triple bursts
 
 // Loading animation timer
 unsigned long lastLoadingUpdate = 0;
@@ -196,16 +207,9 @@ void loop() {
   delay(1);
 }
 
-// Handle non-blocking white LED flashing
+// White LED flashing is now driven directly by handleBuzzerFlashing()'s state machine
 void handleWhiteFlashing() {
-  if (withinProxRange) {
-    // White LED state follows the buzzer flash state
-    if (buzzerFlashState) {
-      rgb.setDigitalColor(true, true, true);  // White on
-    } else {
-      rgb.allOff();  // Off
-    }
-  }
+  // Intentionally empty - LED is synced with buzzer inside handleBuzzerFlashing()
 }
 
 // Handle mode button press with debouncing and hold-to-reset
@@ -397,10 +401,10 @@ void checkProximityToTraffipax() {
         // Stop any speed warnings when entering traffipax proximity
         stopSpeedWarnings();
 
-        // Start by turning leds off and begin flashing
+        // Start by turning LEDs off and reset the triple-beep state machine
         rgb.allOff();
-        buzzerFlashTimer = millis();                    // Initialize buzzer timer
-        rgb.startWhiteFlashing(BUZZER_FLASH_INTERVAL);  // Start non-blocking white flash
+        proxBeepPhase = PROX_BEEP1_ON;  // Begin immediately with first beep
+        proxBeepTimer = millis();
       }
 
       break;
@@ -432,25 +436,69 @@ void checkProximityToTraffipax() {
   }
 }
 
-// Function to handle buzzer flashing in sync with RGB
+// Triple-beep state machine: beep-beep-beep ... 10s silence ... repeat
 void handleBuzzerFlashing() {
-  if (withinProxRange) {
-    unsigned long currentTime = millis();
+  if (!withinProxRange) return;
 
-    if (currentTime - buzzerFlashTimer >= BUZZER_FLASH_INTERVAL) {
-      if (buzzerFlashState) {
-        // Turn buzzer on and white LED on
-        tone(BUZZER, 3700, BUZZER_FLASH_INTERVAL);
-        rgb.setDigitalColor(true, true, true);  // White on
-      } else {
-        // Turn buzzer off and white LED off
+  unsigned long currentTime = millis();
+  unsigned long elapsed = currentTime - proxBeepTimer;
+
+  switch (proxBeepPhase) {
+
+    case PROX_BEEP1_ON:
+      tone(BUZZER, 3700);
+      rgb.setDigitalColor(true, true, true);
+      if (elapsed >= PROX_BEEP_DURATION) {
         noTone(BUZZER);
-        rgb.allOff();  // Off
+        rgb.allOff();
+        proxBeepPhase = PROX_BEEP1_OFF;
+        proxBeepTimer = currentTime;
       }
+      break;
 
-      buzzerFlashState = !buzzerFlashState;
-      buzzerFlashTimer = currentTime;
-    }
+    case PROX_BEEP1_OFF:
+      if (elapsed >= PROX_BEEP_GAP) {
+        proxBeepPhase = PROX_BEEP2_ON;
+        proxBeepTimer = currentTime;
+      }
+      break;
+
+    case PROX_BEEP2_ON:
+      tone(BUZZER, 3700);
+      rgb.setDigitalColor(true, true, true);
+      if (elapsed >= PROX_BEEP_DURATION) {
+        noTone(BUZZER);
+        rgb.allOff();
+        proxBeepPhase = PROX_BEEP2_OFF;
+        proxBeepTimer = currentTime;
+      }
+      break;
+
+    case PROX_BEEP2_OFF:
+      if (elapsed >= PROX_BEEP_GAP) {
+        proxBeepPhase = PROX_BEEP3_ON;
+        proxBeepTimer = currentTime;
+      }
+      break;
+
+    case PROX_BEEP3_ON:
+      tone(BUZZER, 3700);
+      rgb.setDigitalColor(true, true, true);
+      if (elapsed >= PROX_BEEP_DURATION) {
+        noTone(BUZZER);
+        rgb.allOff();
+        proxBeepPhase = PROX_WAITING;
+        proxBeepTimer = currentTime;
+      }
+      break;
+
+    case PROX_WAITING:
+      // Silent for 10 seconds, then restart
+      if (elapsed >= PROX_BEEP_WAIT) {
+        proxBeepPhase = PROX_BEEP1_ON;
+        proxBeepTimer = currentTime;
+      }
+      break;
   }
 }
 
