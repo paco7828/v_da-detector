@@ -326,4 +326,10 @@ public:
     }
     return timeCache.valid ? timeCache.dayIndex : 0;
   }
+
+  void setUpdateRate5Hz() {
+    const uint8_t ubx_5hz[] = { 0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8, 0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A };
+    gpsSerial.write(ubx_5hz, sizeof(ubx_5hz));
+    gpsSerial.flush();
+  }
 };

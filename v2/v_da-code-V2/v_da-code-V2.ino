@@ -46,7 +46,7 @@ unsigned long proxBeepTimer = 0;
 
 constexpr unsigned long PROX_BEEP_DURATION = 100;  // ms per beep
 constexpr unsigned long PROX_BEEP_GAP = 100;       // ms gap between beeps
-constexpr unsigned long PROX_BEEP_WAIT = 8000;    // ms wait between triple bursts
+constexpr unsigned long PROX_BEEP_WAIT = 8000;     // ms wait between triple bursts
 
 // Loading animation timer
 unsigned long lastLoadingUpdate = 0;
@@ -99,6 +99,8 @@ void setup() {
 
   // Start GPS
   gps.begin(GPS_RX, GPS_TX, GPS_BAUD);
+  delay(100);
+  gps.setUpdateRate5Hz();
 
   // Initialize RGB with pins and common cathode configuration
   rgb.begin(LED_R, LED_G, LED_B, LED_COMMON_CATHODE);
